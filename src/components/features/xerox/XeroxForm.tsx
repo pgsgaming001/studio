@@ -13,6 +13,7 @@ import { PaymentSection } from "./PaymentSection";
 import { PrintPreview } from "./PrintPreview";
 import { useToast } from "@/hooks/use-toast";
 import { PDFDocument } from 'pdf-lib';
+import { submitOrderToFirebase, type OrderFormPayload } from '@/app/actions/submitOrder';
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
 
@@ -44,6 +45,8 @@ export default function XeroxForm() {
   const deliveryFee = 5.00; 
   const [totalCost, setTotalCost] = useState<number>(deliveryFee);
   const [isOrderDisabled, setIsOrderDisabled] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
 
   const handleFileChange = async (selectedFile: File | null) => {
     setFile(selectedFile);
@@ -97,8 +100,8 @@ export default function XeroxForm() {
   }, [file, numPagesStr, numCopiesStr, deliveryAddress, pageCountStatus]);
 
   useEffect(() => {
-    setIsOrderDisabled(!validateForm());
-  }, [validateForm]); // Rerun validateForm when its dependencies change
+    setIsOrderDisabled(!validateForm() || isSubmitting);
+  }, [validateForm, isSubmitting]); 
 
   const calculateCost = useCallback(() => {
     const numP = parseInt(numPagesStr);
@@ -130,7 +133,7 @@ export default function XeroxForm() {
     setTotalCost(printCost + deliveryFee);
   }, [printCost, deliveryFee]);
 
-  const handleSubmitOrder = () => {
+  const handleSubmitOrder = async () => {
     if (!validateForm()) {
         toast({
             title: "Incomplete Order",
@@ -139,8 +142,54 @@ export default function XeroxForm() {
         });
         return;
     }
-    console.log("Order placed:", { file: fileName, numPages: numPagesStr, numCopies: numCopiesStr, printColor, paperSize, printSides, layout, deliveryAddress, totalCost });
-    router.push("/order-confirmation");
+
+    setIsSubmitting(true);
+    toast({
+      title: "Placing Order...",
+      description: "Submitting your order details. Please wait.",
+    });
+
+    const orderPayload: OrderFormPayload = {
+      fileName,
+      numPages: numPagesStr,
+      numCopies: numCopiesStr,
+      printColor,
+      paperSize,
+      printSides,
+      layout,
+      deliveryAddress,
+      totalCost,
+    };
+
+    try {
+      const result = await submitOrderToFirebase(orderPayload);
+      if (result.success) {
+        toast({
+          title: "Order Submitted!",
+          description: `Your order (ID: ${result.orderId}) has been successfully submitted.`,
+        });
+        router.push("/order-confirmation");
+      } else {
+        toast({
+          title: "Order Submission Failed",
+          description: result.error || "An unknown error occurred while submitting to Firebase.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error in handleSubmitOrder calling Server Action:", error);
+      let message = "An unexpected error occurred while submitting your order.";
+      if (error instanceof Error) {
+        message = error.message;
+      }
+      toast({
+        title: "Order Submission Error",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -211,7 +260,7 @@ export default function XeroxForm() {
             <CardTitle className="font-headline text-2xl text-accent">Payment</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <PaymentSection onPlaceOrder={handleSubmitOrder} disabled={isOrderDisabled}/>
+            <PaymentSection onPlaceOrder={handleSubmitOrder} disabled={isOrderDisabled || isSubmitting}/>
           </CardContent>
         </Card>
       </div>
