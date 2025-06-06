@@ -1,9 +1,10 @@
+
 "use client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Copy, Palette, ScissorsIcon, Newspaper } from "lucide-react"; // Using Newspaper for Paper Size
+import { FileText, Copy, Palette, ScissorsIcon, Newspaper, LayoutGrid } from "lucide-react";
 
 interface PrintSettingsProps {
   numPages: string;
@@ -16,6 +17,8 @@ interface PrintSettingsProps {
   setPaperSize: (value: 'A4' | 'Letter' | 'Legal') => void;
   printSides: 'single' | 'double';
   setPrintSides: (value: 'single' | 'double') => void;
+  layout: '1up' | '2up';
+  setLayout: (value: '1up' | '2up') => void;
 }
 
 export function PrintSettings({
@@ -24,6 +27,7 @@ export function PrintSettings({
   printColor, setPrintColor,
   paperSize, setPaperSize,
   printSides, setPrintSides,
+  layout, setLayout,
 }: PrintSettingsProps) {
   return (
     <div className="space-y-6">
@@ -31,7 +35,7 @@ export function PrintSettings({
         <div>
           <Label htmlFor="num-pages" className="flex items-center space-x-2 mb-1">
             <FileText size={16} className="text-primary"/>
-            <span className="font-medium">Number of Pages</span>
+            <span className="font-medium">Number of Pages (in PDF)</span>
           </Label>
           <Input id="num-pages" type="number" min="1" value={numPages} onChange={(e) => setNumPages(e.target.value)} placeholder="e.g., 50" />
         </div>
@@ -94,6 +98,22 @@ export function PrintSettings({
             </div>
             </RadioGroup>
         </div>
+      </div>
+      
+      <div>
+        <Label htmlFor="layout" className="flex items-center space-x-2 mb-1">
+          <LayoutGrid size={16} className="text-primary"/>
+          <span className="font-medium">Layout (Pages per Side)</span>
+        </Label>
+        <Select value={layout} onValueChange={(value: '1up' | '2up') => setLayout(value)}>
+          <SelectTrigger id="layout">
+            <SelectValue placeholder="Select layout" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1up">1 Page per Side</SelectItem>
+            <SelectItem value="2up">2 Pages per Side</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

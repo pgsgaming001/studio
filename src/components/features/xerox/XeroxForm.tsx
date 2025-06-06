@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -5,10 +6,11 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUpload } from "./FileUpload";
 import { PrintSettings } from "./PrintSettings";
-import type { Address } from "./DeliveryAddress"; // Import type from sibling
+import type { Address } from "./DeliveryAddress";
 import { DeliveryAddress } from "./DeliveryAddress";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentSection } from "./PaymentSection";
+import { PrintPreview } from "./PrintPreview"; // New import
 import { useToast } from "@/hooks/use-toast";
 
 export default function XeroxForm() {
@@ -18,12 +20,13 @@ export default function XeroxForm() {
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
 
-  const [numPagesStr, setNumPagesStr] = useState<string>("10");
+  const [numPagesStr, setNumPagesStr] = useState<string>("1"); // Default to 1 for preview
   const [numCopiesStr, setNumCopiesStr] = useState<string>("1");
 
   const [printColor, setPrintColor] = useState<'color' | 'bw'>('bw');
   const [paperSize, setPaperSize] = useState<'A4' | 'Letter' | 'Legal'>('A4');
   const [printSides, setPrintSides] = useState<'single' | 'double'>('single');
+  const [layout, setLayout] = useState<'1up' | '2up'>('1up'); // New state for layout
 
   const [deliveryAddress, setDeliveryAddress] = useState<Address>({
     street: "",
@@ -41,6 +44,9 @@ export default function XeroxForm() {
   const handleFileChange = (selectedFile: File | null) => {
     setFile(selectedFile);
     setFileName(selectedFile ? selectedFile.name : null);
+    // For PDF files, we can't easily get page count client-side without a library.
+    // User will input this manually. We can prompt or set a sensible default.
+    // setNumPagesStr("1"); // Reset or prompt, for now, rely on user input or default.
   };
   
   const validateForm = useCallback(() => {
@@ -80,6 +86,8 @@ export default function XeroxForm() {
       currentPrintCost *= 0.9; // 10% discount for double-sided
     }
     
+    // The 'layout' (1up/2up) option affects paper usage but not necessarily the cost per logical page printed.
+    // The current cost model is based on logical pages. So, no change here based on layout for now.
     setPrintCost(currentPrintCost);
   }, [numPagesStr, numCopiesStr, printColor, paperSize, printSides]);
 
@@ -100,8 +108,7 @@ export default function XeroxForm() {
         });
         return;
     }
-    // Placeholder for actual order processing
-    console.log("Order placed:", { file: fileName, numPages: numPagesStr, numCopies: numCopiesStr, printColor, paperSize, printSides, deliveryAddress, totalCost });
+    console.log("Order placed:", { file: fileName, numPages: numPagesStr, numCopies: numCopiesStr, printColor, paperSize, printSides, layout, deliveryAddress, totalCost });
     router.push("/order-confirmation");
   };
 
@@ -128,13 +135,28 @@ export default function XeroxForm() {
               printColor={printColor} setPrintColor={setPrintColor}
               paperSize={paperSize} setPaperSize={setPaperSize}
               printSides={printSides} setPrintSides={setPrintSides}
+              layout={layout} setLayout={setLayout} // Pass layout props
             />
           </CardContent>
         </Card>
 
         <Card className="shadow-lg rounded-xl overflow-hidden">
           <CardHeader className="bg-primary/5">
-            <CardTitle className="font-headline text-2xl text-primary">3. Delivery Address</CardTitle>
+            <CardTitle className="font-headline text-2xl text-primary">3. Print Preview (Schematic)</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <PrintPreview
+              fileName={fileName}
+              numPages={numPagesStr}
+              printSides={printSides}
+              layout={layout}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg rounded-xl overflow-hidden">
+          <CardHeader className="bg-primary/5">
+            <CardTitle className="font-headline text-2xl text-primary">4. Delivery Address</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <DeliveryAddress address={deliveryAddress} setAddress={setDeliveryAddress} />
@@ -145,7 +167,7 @@ export default function XeroxForm() {
       <div className="lg:col-span-1 space-y-6 md:space-y-8 lg:sticky lg:top-8">
         <Card className="shadow-lg rounded-xl overflow-hidden">
           <CardHeader className="bg-accent/5">
-            <CardTitle className="font-headline text-2xl text-accent">4. Order Summary</CardTitle>
+            <CardTitle className="font-headline text-2xl text-accent">Order Summary</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <OrderSummary printCost={printCost} deliveryFee={deliveryFee} />
@@ -154,7 +176,7 @@ export default function XeroxForm() {
 
         <Card className="shadow-lg rounded-xl overflow-hidden">
           <CardHeader className="bg-accent/5">
-            <CardTitle className="font-headline text-2xl text-accent">5. Payment</CardTitle>
+            <CardTitle className="font-headline text-2xl text-accent">Payment</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <PaymentSection onPlaceOrder={handleSubmitOrder} disabled={isOrderDisabled}/>
