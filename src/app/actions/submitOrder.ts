@@ -2,7 +2,7 @@
 'use server';
 
 import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, type Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, type Timestamp } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import type { Address } from '@/components/features/xerox/DeliveryAddress';
 
@@ -38,66 +38,51 @@ export async function submitOrderToFirebase(order: OrderFormPayload): Promise<{s
     return { success: false, error: "Incomplete delivery address. All address fields are required." };
   }
 
+  let orderId: string;
   let pdfDownloadURL: string | null = null;
+  let docRefForWrite;
 
   try {
-    // Create a preliminary document reference to get an ID for storage path
-    const preliminaryDocRef = await addDoc(collection(db, "orders"), {}); // Add an empty doc or minimal data
-    const orderId = preliminaryDocRef.id; // Use this ID for storage
+    // Destructure payload to separate file data from other order details
+    const { fileDataUri, fileName: originalFileName, ...restOfOrderPayload } = order;
 
-    if (order.fileDataUri && order.fileName) {
-      const storageRef = ref(storage, `user_documents/${orderId}/${order.fileName}`);
-      // Upload the base64 string. The 'data_url' type handles 'data:mime/type;base64,payload'
-      const uploadResult = await uploadString(storageRef, order.fileDataUri, 'data_url');
+    // 1. Create the Firestore document *first* but without the PDF URL yet.
+    // This gives us the ID to use in the storage path.
+    const initialOrderData = {
+      ...restOfOrderPayload,
+      fileName: originalFileName, // Keep original file name
+      status: originalFileName && fileDataUri ? 'pending_upload' : 'pending', // Temp status if file exists
+      createdAt: serverTimestamp(),
+      pdfDownloadURL: null, // Explicitly null initially
+    };
+
+    docRefForWrite = await addDoc(collection(db, "orders"), initialOrderData);
+    orderId = docRefForWrite.id;
+
+    // 2. If there's a file, upload it to Firebase Storage using the orderId in the path
+    if (fileDataUri && originalFileName) {
+      // Sanitize filename for storage path if necessary, e.g., replace spaces
+      const sanitizedFileName = originalFileName.replace(/\s+/g, '_');
+      const storagePath = `user_documents/${orderId}/${sanitizedFileName}`;
+      const storageRef = ref(storage, storagePath);
+      
+      const uploadResult = await uploadString(storageRef, fileDataUri, 'data_url');
       pdfDownloadURL = await getDownloadURL(uploadResult.ref);
+
+      // 3. Update the Firestore document with the pdfDownloadURL and final status
+      await updateDoc(docRefForWrite, {
+        pdfDownloadURL: pdfDownloadURL,
+        status: 'pending' // Final pending status
+      });
+    } else if (initialOrderData.status === 'pending_upload') {
+      // If it was 'pending_upload' but somehow no fileDataUri, correct status
+      await updateDoc(docRefForWrite, {
+        status: 'pending'
+      });
     }
-
-    const orderToSave: Omit<OrderData, 'createdAt'> & { createdAt: any } = {
-      fileName: order.fileName,
-      numPages: order.numPages,
-      numCopies: order.numCopies,
-      printColor: order.printColor,
-      paperSize: order.paperSize,
-      printSides: order.printSides,
-      layout: order.layout,
-      deliveryAddress: order.deliveryAddress,
-      totalCost: order.totalCost,
-      status: 'pending', 
-      pdfDownloadURL: pdfDownloadURL,
-      createdAt: serverTimestamp() 
-    };
     
-    // Update the preliminary document with the full order data
-    // Or, if addDoc above was truly minimal, you might use setDoc here with the orderId
-    // For simplicity, if addDoc allows updating later or if we delete and re-add:
-    // await deleteDoc(preliminaryDocRef); // if addDoc created a placeholder
-    // const finalDocRef = await setDoc(doc(db, "orders", orderId), orderToSave); // Then set the actual data
-
-    // For now, let's assume addDoc just writes to a new doc and we return its ID.
-    // The user_documents path will use a different ID if we do it this way.
-    // A better way for predictable storage path is to generate ID client-side or use a Cloud Function trigger.
-    // For simplicity in this step, we'll accept potentially different IDs or a more complex Firestore write pattern.
-    // The current code above with `preliminaryDocRef` and then writing `orderToSave` to a *new* document
-    // using `addDoc` again (as implied by the original structure) would be problematic for linking storage.
-
-    // Corrected approach: Generate ID, upload to storage with that ID, then save to Firestore with that ID.
-    // However, `addDoc` generates the ID. Let's stick to uploading first, then saving.
-    // The `orderId` used for storage path in the code above refers to a *preliminary* doc.
-    // This is complex. Simpler for now: Upload, then add to Firestore. The Order ID will be for the Firestore doc.
-
-    const docData: Omit<OrderData, 'createdAt'> & { createdAt: any } = {
-        ...order,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-        pdfDownloadURL: pdfDownloadURL, // Will be null if no file upload
-    };
-    // Remove fileDataUri as it's not part of OrderData
-    delete (docData as any).fileDataUri;
-
-
-    const docRef = await addDoc(collection(db, "orders"), docData);
-    console.log("Order submitted to Firebase with ID: ", docRef.id);
-    return { success: true, orderId: docRef.id };
+    console.log("Order submitted to Firebase with ID: ", orderId);
+    return { success: true, orderId: orderId };
 
   } catch (e: any) { 
     console.error("Error processing order with Firebase: ", e);
@@ -113,6 +98,13 @@ export async function submitOrderToFirebase(order: OrderFormPayload): Promise<{s
         errorMessage += ` (Code: ${e.code})`;
     }
     
+    // Optional: If an error occurs after doc creation but before completion,
+    // you might want to delete the partially created order or mark it as 'failed'.
+    // For now, we just return the error.
+    // if (orderId && docRefForWrite) {
+    //   await updateDoc(docRefForWrite, { status: 'failed', error: errorMessage });
+    // }
+
     return { success: false, error: errorMessage };
   }
 }
