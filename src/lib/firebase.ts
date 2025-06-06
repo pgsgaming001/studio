@@ -1,6 +1,7 @@
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 // IMPORTANT: Replace these with your actual Firebase project configuration!
 // You can find this in your Firebase project settings.
@@ -15,7 +16,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDAxciWioV8mRKd6k3U-W73xPWENdVUXpI",
   authDomain: "xerox2u-5855f.firebaseapp.com",
   projectId: "xerox2u-5855f",
-  storageBucket: "xerox2u-5855f.firebasestorage.app",
+  storageBucket: "xerox2u-5855f.appspot.com", // Ensure this is correct for storage
   messagingSenderId: "1023070994651",
   appId: "1:1023070994651:web:48802fe9d8efbeb20bccfe",
   measurementId: "G-GVGL819SMW"
@@ -23,6 +24,7 @@ const firebaseConfig = {
 
 let app: FirebaseApp;
 let db: Firestore;
+let storage: FirebaseStorage;
 
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
@@ -31,5 +33,6 @@ if (!getApps().length) {
 }
 
 db = getFirestore(app);
+storage = getStorage(app);
 
-export { app, db };
+export { app, db, storage };

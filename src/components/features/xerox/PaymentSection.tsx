@@ -1,5 +1,6 @@
+
 import { Button } from "@/components/ui/button";
-import { CreditCard, ShieldCheck } from "lucide-react";
+import { Send, ShieldCheck } from "lucide-react"; // Changed CreditCard to Send
 
 interface PaymentSectionProps {
   onPlaceOrder: () => void;
@@ -13,15 +14,15 @@ export function PaymentSection({ onPlaceOrder, disabled }: PaymentSectionProps) 
         onClick={onPlaceOrder} 
         disabled={disabled} 
         className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-base py-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
-        aria-label="Proceed to Payment and Place Order"
+        aria-label="Place Order"
       >
-        <CreditCard className="mr-2 h-5 w-5" /> Proceed to Payment
+        <Send className="mr-2 h-5 w-5" /> Place Order
       </Button>
       <p className="text-xs text-muted-foreground text-center flex items-center justify-center">
-        <ShieldCheck size={14} className="mr-1 text-green-500" /> Secure Payment Gateway
+        <ShieldCheck size={14} className="mr-1 text-green-500" /> Your order details are secure.
       </p>
       <p className="text-xs text-muted-foreground text-center font-code">
-        (Actual payment integration is a sample feature)
+        (PDF will be uploaded and order saved)
       </p>
     </div>
   );

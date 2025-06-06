@@ -17,12 +17,25 @@ import { submitOrderToFirebase, type OrderFormPayload } from '@/app/actions/subm
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
 
+// Helper function to convert ArrayBuffer to Base64 Data URI
+function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = window.btoa(binary);
+  return `data:${mimeType};base64,${base64}`;
+}
+
 export default function XeroxForm() {
   const router = useRouter();
   const { toast } = useToast();
 
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileDataUri, setFileDataUri] = useState<string | null>(null); // For storing file as base64
 
   const [numPagesStr, setNumPagesStr] = useState<string>("1");
   const [numCopiesStr, setNumCopiesStr] = useState<string>("1");
@@ -51,13 +64,14 @@ export default function XeroxForm() {
   const handleFileChange = async (selectedFile: File | null) => {
     setFile(selectedFile);
     setFileName(selectedFile ? selectedFile.name : null);
+    setFileDataUri(null); // Reset file data URI
   
     if (selectedFile) {
       setPageCountStatus('processing');
       setNumPagesStr(""); 
       toast({
         title: "Processing PDF",
-        description: "Attempting to detect page count...",
+        description: "Attempting to detect page count and prepare file...",
       });
       try {
         const arrayBuffer = await selectedFile.arrayBuffer();
@@ -65,30 +79,37 @@ export default function XeroxForm() {
         const pageCount = pdfDoc.getPageCount();
         setNumPagesStr(pageCount.toString());
         setPageCountStatus('detected');
+        
+        // Convert ArrayBuffer to base64 data URI for server action
+        const dataUri = arrayBufferToDataUri(arrayBuffer, selectedFile.type);
+        setFileDataUri(dataUri);
+
         toast({
-          title: "Page Count Detected",
-          description: `${pageCount} page(s) found in your PDF.`,
+          title: "PDF Processed",
+          description: `${pageCount} page(s) found. File ready for submission.`,
         });
       } catch (error) {
-        console.error("Failed to process PDF for page count:", error);
+        console.error("Failed to process PDF:", error);
         setNumPagesStr("1"); 
         setPageCountStatus('error');
+        setFileDataUri(null);
         toast({
-          title: "Detection Failed",
-          description: "Could not automatically detect page count. Please enter manually.",
+          title: "PDF Processing Failed",
+          description: "Could not read PDF for page count or prepare for upload. Please try another file or enter page count manually.",
           variant: "destructive",
         });
       }
     } else {
       setNumPagesStr("1"); 
       setPageCountStatus('idle');
+      setFileDataUri(null);
     }
   };
   
   const validateForm = useCallback(() => {
     const numP = parseInt(numPagesStr);
     const numC = parseInt(numCopiesStr);
-    const isFileValid = !!file;
+    const isFileValid = !!file && !!fileDataUri; // Ensure file data is also ready
     const arePrintSettingsValid = !isNaN(numP) && numP > 0 && !isNaN(numC) && numC > 0 && pageCountStatus !== 'processing';
     const isAddressValid = 
         deliveryAddress.street.trim() !== "" &&
@@ -97,7 +118,7 @@ export default function XeroxForm() {
         deliveryAddress.zip.trim() !== "" &&
         deliveryAddress.country.trim() !== "";
     return isFileValid && arePrintSettingsValid && isAddressValid;
-  }, [file, numPagesStr, numCopiesStr, deliveryAddress, pageCountStatus]);
+  }, [file, fileDataUri, numPagesStr, numCopiesStr, deliveryAddress, pageCountStatus]);
 
   useEffect(() => {
     setIsOrderDisabled(!validateForm() || isSubmitting);
@@ -134,10 +155,10 @@ export default function XeroxForm() {
   }, [printCost, deliveryFee]);
 
   const handleSubmitOrder = async () => {
-    if (!validateForm()) {
+    if (!validateForm() || !fileDataUri) { // Also check fileDataUri explicitly here
         toast({
             title: "Incomplete Order",
-            description: "Please fill all required fields: upload a PDF, set print options (wait for page detection if processing), and provide a delivery address.",
+            description: "Please upload a PDF, ensure it's processed, set print options, and provide a delivery address.",
             variant: "destructive",
         });
         return;
@@ -146,11 +167,12 @@ export default function XeroxForm() {
     setIsSubmitting(true);
     toast({
       title: "Placing Order...",
-      description: "Submitting your order details. Please wait.",
+      description: "Submitting your order details and uploading file. Please wait.",
     });
 
     const orderPayload: OrderFormPayload = {
       fileName,
+      fileDataUri, // Add file data URI to payload
       numPages: numPagesStr,
       numCopies: numCopiesStr,
       printColor,
@@ -257,7 +279,7 @@ export default function XeroxForm() {
 
         <Card className="shadow-lg rounded-xl overflow-hidden">
           <CardHeader className="bg-accent/5">
-            <CardTitle className="font-headline text-2xl text-accent">Payment</CardTitle>
+            <CardTitle className="font-headline text-2xl text-accent">Place Order</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <PaymentSection onPlaceOrder={handleSubmitOrder} disabled={isOrderDisabled || isSubmitting}/>

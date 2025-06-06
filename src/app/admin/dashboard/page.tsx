@@ -8,14 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Package, DollarSign, ListChecks, AlertTriangle, Loader2, FileText, Palette, CopyIcon, Scaling, MapPin, CalendarDays } from "lucide-react";
+import { Package, DollarSign, ListChecks, AlertTriangle, Loader2, FileText, Palette, CopyIcon, Scaling, MapPin, CalendarDays, Download } from "lucide-react";
 import type { OrderData as SubmittedOrderData } from "@/app/actions/submitOrder";
 
 // Extended OrderData for display, including Firestore document ID and JS Date
 interface OrderDisplayData extends SubmittedOrderData {
   id: string;
   createdAt: Date; // Firestore Timestamp is converted to JS Date
+  // pdfDownloadURL is already optional in SubmittedOrderData
 }
 
 export default function AdminDashboardPage() {
@@ -44,14 +46,13 @@ export default function AdminDashboardPage() {
 
         querySnapshot.forEach((doc) => {
           const data = doc.data() as SubmittedOrderData;
-          // Ensure createdAt is handled correctly, might be null or already a JS Date if not from serverTimestamp
           let createdAtDate: Date;
           if (data.createdAt && typeof (data.createdAt as any).toDate === 'function') {
             createdAtDate = (data.createdAt as Timestamp).toDate();
           } else if (data.createdAt instanceof Date) {
             createdAtDate = data.createdAt;
           } else {
-            createdAtDate = new Date(); // Fallback, though ideally createdAt should always be a Timestamp from Firestore
+            createdAtDate = new Date(); 
           }
 
           fetchedOrders.push({
@@ -107,7 +108,6 @@ export default function AdminDashboardPage() {
         <p className="text-muted-foreground mt-1">Overview of print orders and key metrics.</p>
       </header>
 
-      {/* Analytics Section */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <Card className="shadow-lg rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -136,12 +136,11 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">${totalRevenue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">From all completed and pending orders</p>
+            <p className="text-xs text-muted-foreground">From all orders</p>
           </CardContent>
         </Card>
       </section>
 
-      {/* Orders Table Section */}
       <section>
         <Card className="shadow-xl rounded-xl overflow-hidden">
           <CardHeader className="bg-primary/5">
@@ -161,15 +160,16 @@ export default function AdminDashboardPage() {
                 <Table>
                   <TableHeader className="sticky top-0 bg-secondary/80 backdrop-blur-sm z-10">
                     <TableRow>
-                      <TableHead className="w-[120px]">Order ID</TableHead>
-                      <TableHead><FileText size={16} className="inline mr-1"/>File Name</TableHead>
+                      <TableHead className="w-[100px]">Order ID</TableHead>
+                      <TableHead><FileText size={16} className="inline mr-1"/>File</TableHead>
+                      <TableHead><Download size={16} className="inline mr-1"/>Attachment</TableHead>
                       <TableHead className="text-center"><CopyIcon size={16} className="inline mr-1"/>Copies</TableHead>
                       <TableHead><Palette size={16} className="inline mr-1"/>Color</TableHead>
-                      <TableHead><Scaling size={16} className="inline mr-1"/>Paper Size</TableHead>
+                      <TableHead><Scaling size={16} className="inline mr-1"/>Paper</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead><MapPin size={16} className="inline mr-1"/>Delivery</TableHead>
                       <TableHead className="text-right"><DollarSign size={16} className="inline mr-1"/>Cost</TableHead>
-                      <TableHead className="text-right"><CalendarDays size={16} className="inline mr-1"/>Date Ordered</TableHead>
+                      <TableHead className="text-right"><CalendarDays size={16} className="inline mr-1"/>Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -178,8 +178,19 @@ export default function AdminDashboardPage() {
                         <TableCell className="font-mono text-xs text-muted-foreground truncate" title={order.id}>
                           {order.id.substring(0, 8)}...
                         </TableCell>
-                        <TableCell className="font-medium truncate max-w-[200px]" title={order.fileName || 'N/A'}>
+                        <TableCell className="font-medium truncate max-w-[150px]" title={order.fileName || 'N/A'}>
                           {order.fileName || "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          {order.pdfDownloadURL ? (
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={order.pdfDownloadURL} target="_blank" rel="noopener noreferrer">
+                                <Download size={14} className="mr-1.5" /> View PDF
+                              </a>
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No PDF</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">{order.numCopies}</TableCell>
                         <TableCell className="capitalize">{order.printColor}</TableCell>
@@ -199,12 +210,12 @@ export default function AdminDashboardPage() {
                             {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="truncate max-w-[150px]" title={`${order.deliveryAddress.city}, ${order.deliveryAddress.state} ${order.deliveryAddress.zip}`}>
+                        <TableCell className="truncate max-w-[120px]" title={`${order.deliveryAddress.city}, ${order.deliveryAddress.state} ${order.deliveryAddress.zip}`}>
                           {order.deliveryAddress.city}, {order.deliveryAddress.zip}
                         </TableCell>
                         <TableCell className="text-right">${order.totalCost.toFixed(2)}</TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
-                          {format(order.createdAt, "MMM d, yyyy HH:mm")}
+                          {format(order.createdAt, "MMM d, HH:mm")}
                         </TableCell>
                       </TableRow>
                     ))}
