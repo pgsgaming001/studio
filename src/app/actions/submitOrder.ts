@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, type Timestamp } from 'firebase/firestore';
 import type { Address } from '@/components/features/xerox/DeliveryAddress';
 
+// Exporting OrderData so it can be reused in the dashboard
 export interface OrderData {
   fileName: string | null;
   numPages: string;
@@ -16,7 +17,7 @@ export interface OrderData {
   deliveryAddress: Address;
   totalCost: number;
   status: string; 
-  createdAt: Timestamp | any; // For serverTimestamp()
+  createdAt: Timestamp | any; // For serverTimestamp() or actual Timestamp
 }
 
 // This is the type for data coming from the form
@@ -38,7 +39,7 @@ export async function submitOrderToFirebase(order: OrderFormPayload): Promise<{s
   try {
     const orderToSave: Omit<OrderData, 'createdAt'> & { createdAt: any } = {
       ...order,
-      status: 'pending',
+      status: 'pending', // Default status for new orders
       createdAt: serverTimestamp() // Firestore will convert this to a Timestamp
     };
 
