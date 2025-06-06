@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { getAnalytics, type Analytics } from "firebase/analytics";
 
 // IMPORTANT: Replace these with your actual Firebase project configuration!
 // You can find this in your Firebase project settings.
@@ -25,6 +26,7 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let db: Firestore;
 let storage: FirebaseStorage;
+let analytics: Analytics | undefined;
 
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
@@ -35,4 +37,10 @@ if (!getApps().length) {
 db = getFirestore(app);
 storage = getStorage(app);
 
-export { app, db, storage };
+// Initialize Analytics only on the client side and if measurementId is available
+if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+  analytics = getAnalytics(app);
+}
+
+export { app, db, storage, analytics };
+
