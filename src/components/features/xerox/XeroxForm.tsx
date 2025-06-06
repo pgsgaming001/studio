@@ -10,8 +10,11 @@ import type { Address } from "./DeliveryAddress";
 import { DeliveryAddress } from "./DeliveryAddress";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentSection } from "./PaymentSection";
-import { PrintPreview } from "./PrintPreview"; // New import
+import { PrintPreview } from "./PrintPreview";
 import { useToast } from "@/hooks/use-toast";
+import { PDFDocument } from 'pdf-lib';
+
+export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
 
 export default function XeroxForm() {
   const router = useRouter();
@@ -20,13 +23,14 @@ export default function XeroxForm() {
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
 
-  const [numPagesStr, setNumPagesStr] = useState<string>("1"); // Default to 1 for preview
+  const [numPagesStr, setNumPagesStr] = useState<string>("1");
   const [numCopiesStr, setNumCopiesStr] = useState<string>("1");
+  const [pageCountStatus, setPageCountStatus] = useState<PageCountStatus>('idle');
 
   const [printColor, setPrintColor] = useState<'color' | 'bw'>('bw');
   const [paperSize, setPaperSize] = useState<'A4' | 'Letter' | 'Legal'>('A4');
   const [printSides, setPrintSides] = useState<'single' | 'double'>('single');
-  const [layout, setLayout] = useState<'1up' | '2up'>('1up'); // New state for layout
+  const [layout, setLayout] = useState<'1up' | '2up'>('1up');
 
   const [deliveryAddress, setDeliveryAddress] = useState<Address>({
     street: "",
@@ -41,19 +45,48 @@ export default function XeroxForm() {
   const [totalCost, setTotalCost] = useState<number>(deliveryFee);
   const [isOrderDisabled, setIsOrderDisabled] = useState<boolean>(true);
 
-  const handleFileChange = (selectedFile: File | null) => {
+  const handleFileChange = async (selectedFile: File | null) => {
     setFile(selectedFile);
     setFileName(selectedFile ? selectedFile.name : null);
-    // For PDF files, we can't easily get page count client-side without a library.
-    // User will input this manually. We can prompt or set a sensible default.
-    // setNumPagesStr("1"); // Reset or prompt, for now, rely on user input or default.
+  
+    if (selectedFile) {
+      setPageCountStatus('processing');
+      setNumPagesStr(""); 
+      toast({
+        title: "Processing PDF",
+        description: "Attempting to detect page count...",
+      });
+      try {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+        const pageCount = pdfDoc.getPageCount();
+        setNumPagesStr(pageCount.toString());
+        setPageCountStatus('detected');
+        toast({
+          title: "Page Count Detected",
+          description: `${pageCount} page(s) found in your PDF.`,
+        });
+      } catch (error) {
+        console.error("Failed to process PDF for page count:", error);
+        setNumPagesStr("1"); 
+        setPageCountStatus('error');
+        toast({
+          title: "Detection Failed",
+          description: "Could not automatically detect page count. Please enter manually.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      setNumPagesStr("1"); 
+      setPageCountStatus('idle');
+    }
   };
   
   const validateForm = useCallback(() => {
     const numP = parseInt(numPagesStr);
     const numC = parseInt(numCopiesStr);
     const isFileValid = !!file;
-    const arePrintSettingsValid = !isNaN(numP) && numP > 0 && !isNaN(numC) && numC > 0;
+    const arePrintSettingsValid = !isNaN(numP) && numP > 0 && !isNaN(numC) && numC > 0 && pageCountStatus !== 'processing';
     const isAddressValid = 
         deliveryAddress.street.trim() !== "" &&
         deliveryAddress.city.trim() !== "" &&
@@ -61,17 +94,17 @@ export default function XeroxForm() {
         deliveryAddress.zip.trim() !== "" &&
         deliveryAddress.country.trim() !== "";
     return isFileValid && arePrintSettingsValid && isAddressValid;
-  }, [file, numPagesStr, numCopiesStr, deliveryAddress]);
+  }, [file, numPagesStr, numCopiesStr, deliveryAddress, pageCountStatus]);
 
   useEffect(() => {
     setIsOrderDisabled(!validateForm());
-  }, [file, numPagesStr, numCopiesStr, deliveryAddress, validateForm]);
+  }, [validateForm]); // Rerun validateForm when its dependencies change
 
   const calculateCost = useCallback(() => {
     const numP = parseInt(numPagesStr);
     const numC = parseInt(numCopiesStr);
 
-    if (isNaN(numP) || numP <= 0 || isNaN(numC) || numC <= 0) {
+    if (isNaN(numP) || numP <= 0 || isNaN(numC) || numC <= 0 || pageCountStatus === 'processing') {
       setPrintCost(0);
       return;
     }
@@ -83,13 +116,11 @@ export default function XeroxForm() {
 
     let currentPrintCost = numP * costPerPage * numC;
     if (printSides === 'double') {
-      currentPrintCost *= 0.9; // 10% discount for double-sided
+      currentPrintCost *= 0.9; 
     }
     
-    // The 'layout' (1up/2up) option affects paper usage but not necessarily the cost per logical page printed.
-    // The current cost model is based on logical pages. So, no change here based on layout for now.
     setPrintCost(currentPrintCost);
-  }, [numPagesStr, numCopiesStr, printColor, paperSize, printSides]);
+  }, [numPagesStr, numCopiesStr, printColor, paperSize, printSides, pageCountStatus]);
 
   useEffect(() => {
     calculateCost();
@@ -103,7 +134,7 @@ export default function XeroxForm() {
     if (!validateForm()) {
         toast({
             title: "Incomplete Order",
-            description: "Please fill all required fields: upload a PDF, set print options, and provide a delivery address.",
+            description: "Please fill all required fields: upload a PDF, set print options (wait for page detection if processing), and provide a delivery address.",
             variant: "destructive",
         });
         return;
@@ -131,11 +162,12 @@ export default function XeroxForm() {
           <CardContent className="p-6">
             <PrintSettings
               numPages={numPagesStr} setNumPages={setNumPagesStr}
+              pageCountStatus={pageCountStatus}
               numCopies={numCopiesStr} setNumCopies={setNumCopiesStr}
               printColor={printColor} setPrintColor={setPrintColor}
               paperSize={paperSize} setPaperSize={setPaperSize}
               printSides={printSides} setPrintSides={setPrintSides}
-              layout={layout} setLayout={setLayout} // Pass layout props
+              layout={layout} setLayout={setLayout}
             />
           </CardContent>
         </Card>

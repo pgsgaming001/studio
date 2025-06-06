@@ -4,11 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Copy, Palette, ScissorsIcon, Newspaper, LayoutGrid } from "lucide-react";
+import { FileText, Copy, Palette, ScissorsIcon, Newspaper, LayoutGrid, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import type { PageCountStatus } from "./XeroxForm"; // Import the type
 
 interface PrintSettingsProps {
   numPages: string;
   setNumPages: (value: string) => void;
+  pageCountStatus: PageCountStatus; // Add prop for status
   numCopies: string;
   setNumCopies: (value: string) => void;
   printColor: 'color' | 'bw';
@@ -23,12 +25,33 @@ interface PrintSettingsProps {
 
 export function PrintSettings({
   numPages, setNumPages,
+  pageCountStatus, // Destructure the new prop
   numCopies, setNumCopies,
   printColor, setPrintColor,
   paperSize, setPaperSize,
   printSides, setPrintSides,
   layout, setLayout,
 }: PrintSettingsProps) {
+  
+  const getPageCountPlaceholder = () => {
+    if (pageCountStatus === 'processing') return "Detecting...";
+    if (pageCountStatus === 'error') return "Enter manually";
+    return "e.g., 50";
+  };
+
+  const renderPageCountStatusIcon = () => {
+    if (pageCountStatus === 'processing') {
+      return <Loader2 size={16} className="text-muted-foreground animate-spin ml-2" />;
+    }
+    if (pageCountStatus === 'detected') {
+      return <CheckCircle size={16} className="text-green-500 ml-2" />;
+    }
+    if (pageCountStatus === 'error') {
+      return <AlertCircle size={16} className="text-destructive ml-2" />;
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
@@ -36,8 +59,21 @@ export function PrintSettings({
           <Label htmlFor="num-pages" className="flex items-center space-x-2 mb-1">
             <FileText size={16} className="text-primary"/>
             <span className="font-medium">Number of Pages (in PDF)</span>
+            {renderPageCountStatusIcon()}
           </Label>
-          <Input id="num-pages" type="number" min="1" value={numPages} onChange={(e) => setNumPages(e.target.value)} placeholder="e.g., 50" />
+          <Input 
+            id="num-pages" 
+            type="number" 
+            min="1" 
+            value={numPages} 
+            onChange={(e) => setNumPages(e.target.value)} 
+            placeholder={getPageCountPlaceholder()}
+            readOnly={pageCountStatus === 'detected'}
+            disabled={pageCountStatus === 'processing'}
+            className={pageCountStatus === 'error' ? 'border-destructive' : ''}
+          />
+          {pageCountStatus === 'detected' && <p className="text-xs text-muted-foreground mt-1">Page count auto-detected.</p>}
+          {pageCountStatus === 'error' && <p className="text-xs text-destructive mt-1">Auto-detection failed. Please enter page count.</p>}
         </div>
         <div>
           <Label htmlFor="num-copies" className="flex items-center space-x-2 mb-1">
