@@ -11,8 +11,6 @@ interface PrintPreviewProps {
   layout: '1up' | '2up';
 }
 
-const MAX_PREVIEW_SHEETS = 5;
-
 export function PrintPreview({ fileName, numPages, printSides, layout }: PrintPreviewProps) {
   const logicalPagesCount = parseInt(numPages) || 0;
 
@@ -34,12 +32,13 @@ export function PrintPreview({ fileName, numPages, printSides, layout }: PrintPr
 
   const sheetPreviews = [];
 
-  for (let i = 0; i < Math.min(numPhysicalSheets, MAX_PREVIEW_SHEETS); i++) {
-    const sheetNumber = i + 1;
+  // Only show the first physical sheet (i = 0)
+  if (numPhysicalSheets > 0) {
+    const sheetNumber = 1; // Always sheet 1
     const sheetElements = [];
 
     // Front Side
-    const frontLayoutSideIndex = i * (isDoubleSided ? 2 : 1);
+    const frontLayoutSideIndex = 0 * (isDoubleSided ? 2 : 1); // i is always 0
     if (frontLayoutSideIndex < numLayoutSidesNeeded) {
       const frontPages = [];
       const frontLogicalPageIndexStart = frontLayoutSideIndex * pagesPerLayoutSide;
@@ -63,7 +62,7 @@ export function PrintPreview({ fileName, numPages, printSides, layout }: PrintPr
 
     // Back Side
     if (isDoubleSided) {
-      const backLayoutSideIndex = i * 2 + 1;
+      const backLayoutSideIndex = 0 * 2 + 1; // i is always 0
       if (backLayoutSideIndex < numLayoutSidesNeeded) {
         const backPages = [];
         const backLogicalPageIndexStart = backLayoutSideIndex * pagesPerLayoutSide;
@@ -84,7 +83,6 @@ export function PrintPreview({ fileName, numPages, printSides, layout }: PrintPr
           </div>
         );
       } else if (frontLayoutSideIndex < numLayoutSidesNeeded) { 
-        // If front side had content but back side is not needed for layout pages, still show empty back for double sided
          sheetElements.push(
           <div key={`sheet-${sheetNumber}-back-empty`} className="opacity-60">
             <p className="text-xs font-semibold mb-1 text-center">Sheet {sheetNumber} - Back</p>
@@ -108,16 +106,22 @@ export function PrintPreview({ fileName, numPages, printSides, layout }: PrintPr
   return (
     <div className="space-y-4">
       <div className="max-h-[400px] overflow-y-auto pr-2 space-y-3">
-        {sheetPreviews}
+        {sheetPreviews.length > 0 ? sheetPreviews : (
+          <div className="flex flex-col items-center justify-center text-center p-6 border-2 border-dashed rounded-lg bg-card text-muted-foreground min-h-[200px]">
+             <Printer size={48} className="mb-4 opacity-50" />
+             <p className="font-medium">Preview for the first sheet will appear here.</p>
+          </div>
+        )}
       </div>
-      {numPhysicalSheets > MAX_PREVIEW_SHEETS && (
+      {numPhysicalSheets > 1 && (
         <p className="text-xs text-muted-foreground text-center">
-          Showing preview for the first {MAX_PREVIEW_SHEETS} of {numPhysicalSheets} physical sheets.
+          Showing preview for the first physical sheet. Total physical sheets: {numPhysicalSheets}.
         </p>
       )}
        <p className="text-xs text-muted-foreground text-center mt-2">
-          Total logical pages: {logicalPagesCount}. Total physical sheets: {numPhysicalSheets}.
+          Total logical pages in PDF: {logicalPagesCount}.
       </p>
     </div>
   );
 }
+
