@@ -31,7 +31,7 @@ export async function submitOrderToFirebase(order: OrderFormPayload): Promise<{s
   
   // Ensure all required fields for the address are present
   if (!order.deliveryAddress || !order.deliveryAddress.street || !order.deliveryAddress.city || !order.deliveryAddress.state || !order.deliveryAddress.zip || !order.deliveryAddress.country) {
-    return { success: false, error: "Incomplete delivery address." };
+    return { success: false, error: "Incomplete delivery address. All address fields are required." };
   }
 
 
@@ -45,13 +45,24 @@ export async function submitOrderToFirebase(order: OrderFormPayload): Promise<{s
     const docRef = await addDoc(collection(db, "orders"), orderToSave);
     console.log("Order submitted to Firebase with ID: ", docRef.id);
     return { success: true, orderId: docRef.id };
-  } catch (e) {
+  } catch (e: any) { // Catch as any to inspect its properties
     console.error("Error adding document to Firebase: ", e);
-    // Try to provide a more specific error message if possible
+    
     let errorMessage = "Failed to submit order to Firebase.";
-    if (e instanceof Error) {
+    
+    if (e && typeof e.message === 'string') {
       errorMessage += ` Details: ${e.message}`;
+    } else if (typeof e === 'string') {
+      // If the error itself is a string
+      errorMessage += ` Details: ${e}`;
     }
+
+    // Firebase errors often have a 'code' property
+    if (e && typeof e.code === 'string') {
+        errorMessage += ` (Code: ${e.code})`;
+    }
+    
     return { success: false, error: errorMessage };
   }
 }
+
