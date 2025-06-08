@@ -29,6 +29,8 @@ function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
   return `data:${mimeType};base64,${base64}`;
 }
 
+const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export default function XeroxForm() {
   const router = useRouter();
   const { toast } = useToast();
@@ -67,6 +69,20 @@ export default function XeroxForm() {
     setFileDataUri(null); // Reset file data URI
   
     if (selectedFile) {
+      // File size validation
+      if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
+        toast({
+          title: "File Too Large",
+          description: `The selected PDF exceeds the 10MB size limit. Please choose a smaller file. Your file is ${(selectedFile.size / (1024*1024)).toFixed(2)} MB.`,
+          variant: "destructive",
+        });
+        setFile(null);
+        setFileName(null);
+        setPageCountStatus('idle');
+        setNumPagesStr("1");
+        return;
+      }
+
       setPageCountStatus('processing');
       setNumPagesStr(""); 
       toast({
@@ -289,3 +305,4 @@ export default function XeroxForm() {
     </div>
   );
 }
+
