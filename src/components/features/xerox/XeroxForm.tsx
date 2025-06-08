@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -17,6 +16,7 @@ import { PDFDocument } from 'pdf-lib';
 import { submitOrderToMongoDB, type OrderFormPayload } from '@/app/actions/submitOrder'; 
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
+export type SubmissionStatus = 'idle' | 'preparing' | 'uploading' | 'processing' | 'success' | 'error';
 
 // Helper function to convert ArrayBuffer to Base64 Data URI
 function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
@@ -62,7 +62,7 @@ export default function XeroxForm() {
   const [totalCost, setTotalCost] = useState<number>(deliveryFee);
   const [isOrderDisabled, setIsOrderDisabled] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
+  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>('idle');
 
   const handleFileChange = async (selectedFile: File | null) => {
     setFile(selectedFile);
@@ -180,6 +180,7 @@ export default function XeroxForm() {
     }
 
     setIsSubmitting(true);
+    setSubmissionStatus('preparing');
     toast({
       title: "Placing Order...",
       description: "Submitting your order details and uploading file. Please wait.",
@@ -199,15 +200,18 @@ export default function XeroxForm() {
     };
 
     try {
+      setSubmissionStatus('uploading');
       // Changed to use the MongoDB submission action
       const result = await submitOrderToMongoDB(orderPayload); 
       if (result.success) {
+        setSubmissionStatus('success');
         toast({
           title: "Order Submitted!",
           description: `Your order (ID: ${result.orderId}) has been successfully submitted.`,
         });
         router.push("/order-confirmation");
       } else {
+        setSubmissionStatus('error');
         toast({
           title: "Order Submission Failed",
           description: result.error || "An unknown error occurred while submitting to the database.",
@@ -216,6 +220,7 @@ export default function XeroxForm() {
       }
     } catch (error) {
       console.error("Error in handleSubmitOrder calling Server Action:", error);
+      setSubmissionStatus('error');
       let message = "An unexpected error occurred while submitting your order.";
       if (error instanceof Error) {
         message = error.message;
@@ -298,7 +303,7 @@ export default function XeroxForm() {
             <CardTitle className="font-headline text-2xl text-accent">Place Order</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <PaymentSection onPlaceOrder={handleSubmitOrder} disabled={isOrderDisabled || isSubmitting}/>
+            <PaymentSection onPlaceOrder={handleSubmitOrder} disabled={isOrderDisabled || isSubmitting} submissionStatus={submissionStatus}/>
           </CardContent>
         </Card>
       </div>

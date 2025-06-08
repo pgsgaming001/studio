@@ -4,26 +4,46 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { format, parseISO } from "date-fns"; // parseISO is needed for date strings
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { format, parseISO } from "date-fns";
 import { Package, DollarSign, ListChecks, AlertTriangle, Loader2, FileText, Palette, CopyIcon, Scaling, MapPin, CalendarDays, Download } from "lucide-react";
-import { getOrdersFromMongoDB, type OrderDisplayData as FetchedOrderData } from "@/app/actions/getOrders"; // Import new action and type
+import { getOrdersFromMongoDB, type OrderDisplayData as FetchedOrderData } from "@/app/actions/getOrders";
+import { updateOrderStatus, type OrderStatus } from "@/app/actions/updateOrderStatus";
 
-// Data structure for display in the dashboard
-interface OrderDisplayDataInternal extends Omit<FetchedOrderData, 'createdAt'> {
-  createdAt: Date; // Convert ISO string back to Date for formatting
+// Define valid statuses
+const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+
+interface OrderDisplayDataInternal extends Omit<FetchedOrderData, 'createdAt' | 'status'> {
+  createdAt: Date;
+  status: OrderStatus;
 }
 
 export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<OrderDisplayDataInternal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const [totalOrders, setTotalOrders] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
+
+  const calculateSummaryMetrics = (currentOrders: OrderDisplayDataInternal[]) => {
+    let revenue = 0;
+    let pendingCount = 0;
+    currentOrders.forEach(order => {
+      revenue += order.totalCost || 0;
+      if (order.status === "pending") {
+        pendingCount++;
+      }
+    });
+    setTotalRevenue(revenue);
+    setPendingOrders(pendingCount);
+    setTotalOrders(currentOrders.length);
+  };
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -36,24 +56,14 @@ export default function AdminDashboardPage() {
           throw new Error(result.error);
         }
         
-        let revenue = 0;
-        let pendingCount = 0;
-
-        const processedOrders: OrderDisplayDataInternal[] = result.orders.map((order) => {
-          revenue += order.totalCost || 0;
-          if (order.status === "pending") {
-            pendingCount++;
-          }
-          return {
+        const processedOrders: OrderDisplayDataInternal[] = result.orders.map((order) => ({
             ...order,
-            createdAt: parseISO(order.createdAt), // Convert ISO string back to Date
-          };
-        });
+            createdAt: parseISO(order.createdAt),
+            status: order.status as OrderStatus, // Ensure status conforms to OrderStatus type
+          }));
 
         setOrders(processedOrders);
-        setTotalOrders(processedOrders.length);
-        setPendingOrders(pendingCount);
-        setTotalRevenue(revenue);
+        calculateSummaryMetrics(processedOrders);
       } catch (err: any) {
         console.error("Error fetching orders for dashboard:", err);
         setError(`Failed to fetch orders: ${err.message}`);
@@ -64,6 +74,44 @@ export default function AdminDashboardPage() {
 
     fetchOrders();
   }, []);
+
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    const originalOrders = [...orders];
+    
+    // Optimistically update UI
+    const updatedOptimisticOrders = orders.map(order => 
+      order.id === orderId ? { ...order, status: newStatus } : order
+    );
+    setOrders(updatedOptimisticOrders);
+    calculateSummaryMetrics(updatedOptimisticOrders);
+
+    const result = await updateOrderStatus({ orderId, newStatus });
+
+    if (result.success && result.updatedOrder) {
+      toast({
+        title: "Status Updated",
+        description: `Order ${orderId.substring(0,8)} status changed to ${newStatus}.`,
+      });
+      // Confirm update with server response (optional, if optimistic is enough)
+      // For robustness, re-update with server data to ensure consistency
+      const finalOrders = orders.map(order => 
+        order.id === result.updatedOrder!.id ? { ...order, status: result.updatedOrder!.status as OrderStatus, createdAt: parseISO(result.updatedOrder!.createdAt) } : order
+      );
+      setOrders(finalOrders);
+      calculateSummaryMetrics(finalOrders);
+
+    } else {
+      toast({
+        title: "Update Failed",
+        description: result.error || "Could not update order status.",
+        variant: "destructive",
+      });
+      // Revert optimistic update
+      setOrders(originalOrders);
+      calculateSummaryMetrics(originalOrders);
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -180,19 +228,21 @@ export default function AdminDashboardPage() {
                         <TableCell className="capitalize">{order.printColor}</TableCell>
                         <TableCell>{order.paperSize}</TableCell>
                         <TableCell>
-                          <Badge 
-                            variant={order.status === 'pending' ? 'secondary' : order.status === 'completed' ? 'default' : 'outline'}
-                            className={
-                              order.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-                              order.status === 'processing' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                              order.status === 'shipped' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' :
-                              order.status === 'delivered' ? 'bg-green-100 text-green-800 border-green-300' :
-                              order.status === 'cancelled' ? 'bg-red-100 text-red-800 border-red-300' :
-                              ''
-                            }
+                          <Select
+                            value={order.status}
+                            onValueChange={(newStatus: OrderStatus) => handleStatusChange(order.id, newStatus)}
                           >
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                          </Badge>
+                            <SelectTrigger className="w-[130px] h-8 text-xs">
+                              <SelectValue placeholder="Change status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {VALID_STATUSES.map(statusVal => (
+                                <SelectItem key={statusVal} value={statusVal} className="capitalize text-xs">
+                                  {statusVal.charAt(0).toUpperCase() + statusVal.slice(1)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="truncate max-w-[120px]" title={`${order.deliveryAddress.city}, ${order.deliveryAddress.state} ${order.deliveryAddress.zip}`}>
                           {order.deliveryAddress.city}, {order.deliveryAddress.zip}

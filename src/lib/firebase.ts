@@ -6,15 +6,17 @@ import { getAnalytics, type Analytics } from "firebase/analytics";
 
 // IMPORTANT: Ensure these are your actual Firebase project configuration values!
 // You can find this in your Firebase project settings.
+
 const firebaseConfig = {
-  apiKey: "AIzaSyA0GGZI6AH59pynQDOGtCKXFSzCzLAnkUU",
-  authDomain: "start-xerox.firebaseapp.com",
-  projectId: "start-xerox",
-  storageBucket: "start-xerox.firebasestorage.app",
-  messagingSenderId: "747702489591",
-  appId: "1:747702489591:web:d1e5ff52a0246832bcdef2",
-  measurementId: "G-03GF3ZLK2B"
+    apiKey: "AIzaSyDtbjxfeH1EJJpqIv3ZiIjoCCDSjRzmCZk",
+    authDomain: "my-first-project-6eebf.firebaseapp.com",
+    projectId: "my-first-project-6eebf",
+    storageBucket: "my-first-project-6eebf.appspot.com",
+    messagingSenderId: "1010692245718",
+    appId: "1:1010692245718:web:2906c0523917847dc52177",
+    measurementId: "G-84V7PD58P5"
 };
+
 
 let app: FirebaseApp;
 let db: Firestore;
