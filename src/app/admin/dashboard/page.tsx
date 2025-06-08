@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// import { ScrollArea } from "@/components/ui/scroll-area"; // Removed ScrollArea
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -179,52 +179,53 @@ export default function AdminDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[600px] w-full">
+            {/* Replaced ScrollArea with a simple div for scrolling */}
+            <div className="overflow-auto h-[600px] w-full">
               {orders.length === 0 ? (
-                <div className="text-center p-10 text-muted-foreground">
+                <div className="text-center p-10 text-muted-foreground flex flex-col items-center justify-center h-full">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   No orders found.
                 </div>
               ) : (
-                <Table className="min-w-[1000px]">
-                  <TableHeader className="sticky top-0 bg-secondary/80 backdrop-blur-sm z-10">
+                <Table className="min-w-[1100px]"> {/* Increased min-width slightly */}
+                  <TableHeader className="sticky top-0 bg-secondary/95 backdrop-blur-sm z-10"> {/* Increased opacity for sticky header */}
                     <TableRow>
-                      <TableHead className="whitespace-nowrap">Order ID</TableHead>
-                      <TableHead className="whitespace-nowrap"><FileText size={16} className="inline mr-1"/>File</TableHead>
-                      <TableHead className="whitespace-nowrap"><Download size={16} className="inline mr-1"/>Attachment</TableHead>
-                      <TableHead className="text-center whitespace-nowrap"><CopyIcon size={16} className="inline mr-1"/>Copies</TableHead>
-                      <TableHead className="whitespace-nowrap"><Palette size={16} className="inline mr-1"/>Color</TableHead>
-                      <TableHead className="whitespace-nowrap hidden md:table-cell"><Scaling size={16} className="inline mr-1"/>Paper</TableHead>
-                      <TableHead className="whitespace-nowrap">Status</TableHead>
-                      <TableHead className="whitespace-nowrap"><MapPin size={16} className="inline mr-1"/>Delivery</TableHead>
-                      <TableHead className="text-right whitespace-nowrap"><DollarSign size={16} className="inline mr-1"/>Cost</TableHead>
-                      <TableHead className="text-right whitespace-nowrap"><CalendarDays size={16} className="inline mr-1"/>Date</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-3">Order ID</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-3"><FileText size={16} className="inline mr-1"/>File</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-3"><Download size={16} className="inline mr-1"/>Attachment</TableHead>
+                      <TableHead className="text-center whitespace-nowrap px-2 py-3"><CopyIcon size={16} className="inline mr-1"/>Copies</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-3"><Palette size={16} className="inline mr-1"/>Color</TableHead>
+                      <TableHead className="whitespace-nowrap hidden md:table-cell px-2 py-3"><Scaling size={16} className="inline mr-1"/>Paper</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-3">Status</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-3"><MapPin size={16} className="inline mr-1"/>Delivery</TableHead>
+                      <TableHead className="text-right whitespace-nowrap px-2 py-3"><DollarSign size={16} className="inline mr-1"/>Cost</TableHead>
+                      <TableHead className="text-right whitespace-nowrap px-2 py-3"><CalendarDays size={16} className="inline mr-1"/>Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {orders.map((order) => (
                       <TableRow key={order.id} className="hover:bg-primary/5 transition-colors">
-                        <TableCell className="font-mono text-xs text-muted-foreground truncate" title={order.id}>
+                        <TableCell className="font-mono text-xs text-muted-foreground truncate px-2 py-3" title={order.id}>
                           {order.id.substring(0, 8)}...
                         </TableCell>
-                        <TableCell className="font-medium truncate max-w-[150px]" title={order.fileName || 'N/A'}>
+                        <TableCell className="font-medium truncate max-w-[150px] px-2 py-3" title={order.fileName || 'N/A'}>
                           {order.fileName || "N/A"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-2 py-3">
                           {order.pdfDownloadURL ? (
                             <Button variant="outline" size="sm" asChild>
-                              <a href={order.pdfDownloadURL} target="_blank" rel="noopener noreferrer">
-                                <Download size={14} className="mr-1.5" /> View PDF
+                              <a href={order.pdfDownloadURL} target="_blank" rel="noopener noreferrer" className="flex items-center">
+                                <Download size={14} className="mr-1.5 shrink-0" /> View PDF
                               </a>
                             </Button>
                           ) : (
                             <span className="text-xs text-muted-foreground">No PDF</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-center">{order.numCopies}</TableCell>
-                        <TableCell className="capitalize">{order.printColor}</TableCell>
-                        <TableCell className="hidden md:table-cell">{order.paperSize}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-center px-2 py-3">{order.numCopies}</TableCell>
+                        <TableCell className="capitalize px-2 py-3">{order.printColor}</TableCell>
+                        <TableCell className="hidden md:table-cell px-2 py-3">{order.paperSize}</TableCell>
+                        <TableCell className="px-2 py-3">
                           <Select
                             value={order.status}
                             onValueChange={(newStatus: OrderStatus) => handleStatusChange(order.id, newStatus)}
@@ -241,25 +242,22 @@ export default function AdminDashboardPage() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="truncate max-w-[120px]" title={`${order.deliveryAddress.city}, ${order.deliveryAddress.state} ${order.deliveryAddress.zip}`}>
+                        <TableCell className="truncate max-w-[120px] px-2 py-3" title={`${order.deliveryAddress.city}, ${order.deliveryAddress.state} ${order.deliveryAddress.zip}`}>
                           {order.deliveryAddress.city}, {order.deliveryAddress.zip}
                         </TableCell>
-                        <TableCell className="text-right">${order.totalCost.toFixed(2)}</TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground">
-                          {format(order.createdAt, "MMM d, HH:mm")}
+                        <TableCell className="text-right px-2 py-3">${order.totalCost.toFixed(2)}</TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground px-2 py-3">
+                          {format(new Date(order.createdAt), "MMM d, HH:mm")}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               )}
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       </section>
     </div>
   );
-
-    
-
-    
+}
