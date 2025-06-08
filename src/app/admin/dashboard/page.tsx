@@ -8,16 +8,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns"; // parseISO is not needed if createdAt remains string
+import { format } from "date-fns";
 import { Package, DollarSign, ListChecks, AlertTriangle, Loader2, FileText, Palette, CopyIcon, Scaling, MapPin, CalendarDays, Download } from "lucide-react";
 import { getOrdersFromMongoDB, type OrderDisplayData as FetchedOrderData } from "@/app/actions/getOrders";
 import { updateOrderStatus, type OrderStatus } from "@/app/actions/updateOrderStatus";
 
 const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
-// OrderDisplayDataInternal will now keep createdAt as string, as received from FetchedOrderData
 interface OrderDisplayDataInternal extends Omit<FetchedOrderData, 'status'> {
-  status: OrderStatus; // Override status type from string to OrderStatus
+  status: OrderStatus;
 }
 
 export default function AdminDashboardPage() {
@@ -55,10 +54,8 @@ export default function AdminDashboardPage() {
           throw new Error(result.error);
         }
         
-        // Process orders: createdAt is already a string from FetchedOrderData.
-        // status is string in FetchedOrderData, cast it to OrderStatus for internal use.
         const processedOrders: OrderDisplayDataInternal[] = result.orders.map((order) => ({
-            ...order, // Spread order (FetchedOrderData), createdAt remains string
+            ...order,
             status: order.status as OrderStatus, 
           }));
 
@@ -91,7 +88,6 @@ export default function AdminDashboardPage() {
         title: "Status Updated",
         description: `Order ${orderId.substring(0,8)} status changed to ${newStatus}.`,
       });
-      // Confirm update with server response. result.updatedOrder.createdAt is already a string.
       const finalOrders = orders.map(order => 
         order.id === result.updatedOrder!.id 
           ? { ...order, status: result.updatedOrder!.status as OrderStatus, createdAt: result.updatedOrder!.createdAt } 
@@ -191,16 +187,16 @@ export default function AdminDashboardPage() {
                 <Table>
                   <TableHeader className="sticky top-0 bg-secondary/80 backdrop-blur-sm z-10">
                     <TableRow>
-                      <TableHead className="w-[100px]">Order ID</TableHead>
-                      <TableHead><FileText size={16} className="inline mr-1"/>File</TableHead>
-                      <TableHead><Download size={16} className="inline mr-1"/>Attachment</TableHead>
-                      <TableHead className="text-center"><CopyIcon size={16} className="inline mr-1"/>Copies</TableHead>
-                      <TableHead><Palette size={16} className="inline mr-1"/>Color</TableHead>
-                      <TableHead><Scaling size={16} className="inline mr-1"/>Paper</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead><MapPin size={16} className="inline mr-1"/>Delivery</TableHead>
-                      <TableHead className="text-right"><DollarSign size={16} className="inline mr-1"/>Cost</TableHead>
-                      <TableHead className="text-right"><CalendarDays size={16} className="inline mr-1"/>Date</TableHead>
+                      <TableHead className="whitespace-nowrap">Order ID</TableHead>
+                      <TableHead className="whitespace-nowrap"><FileText size={16} className="inline mr-1"/>File</TableHead>
+                      <TableHead className="whitespace-nowrap"><Download size={16} className="inline mr-1"/>Attachment</TableHead>
+                      <TableHead className="text-center whitespace-nowrap"><CopyIcon size={16} className="inline mr-1"/>Copies</TableHead>
+                      <TableHead className="whitespace-nowrap"><Palette size={16} className="inline mr-1"/>Color</TableHead>
+                      <TableHead className="whitespace-nowrap hidden md:table-cell"><Scaling size={16} className="inline mr-1"/>Paper</TableHead>
+                      <TableHead className="whitespace-nowrap">Status</TableHead>
+                      <TableHead className="whitespace-nowrap"><MapPin size={16} className="inline mr-1"/>Delivery</TableHead>
+                      <TableHead className="text-right whitespace-nowrap"><DollarSign size={16} className="inline mr-1"/>Cost</TableHead>
+                      <TableHead className="text-right whitespace-nowrap"><CalendarDays size={16} className="inline mr-1"/>Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -225,7 +221,7 @@ export default function AdminDashboardPage() {
                         </TableCell>
                         <TableCell className="text-center">{order.numCopies}</TableCell>
                         <TableCell className="capitalize">{order.printColor}</TableCell>
-                        <TableCell>{order.paperSize}</TableCell>
+                        <TableCell className="hidden md:table-cell">{order.paperSize}</TableCell>
                         <TableCell>
                           <Select
                             value={order.status}
@@ -248,7 +244,6 @@ export default function AdminDashboardPage() {
                         </TableCell>
                         <TableCell className="text-right">${order.totalCost.toFixed(2)}</TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
-                          {/* format can take an ISO string directly */}
                           {format(order.createdAt, "MMM d, HH:mm")}
                         </TableCell>
                       </TableRow>
@@ -262,4 +257,5 @@ export default function AdminDashboardPage() {
       </section>
     </div>
   );
-}
+
+    
