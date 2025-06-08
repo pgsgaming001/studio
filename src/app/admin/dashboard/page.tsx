@@ -15,8 +15,9 @@ import { updateOrderStatus, type OrderStatus } from "@/app/actions/updateOrderSt
 
 const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
-interface OrderDisplayDataInternal extends Omit<FetchedOrderData, 'status'> {
+interface OrderDisplayDataInternal extends Omit<FetchedOrderData, 'status' | 'createdAt'> {
   status: OrderStatus;
+  createdAt: string; // Keep as string
 }
 
 export default function AdminDashboardPage() {
@@ -57,6 +58,7 @@ export default function AdminDashboardPage() {
         const processedOrders: OrderDisplayDataInternal[] = result.orders.map((order) => ({
             ...order,
             status: order.status as OrderStatus, 
+            createdAt: order.createdAt, // Already a string
           }));
 
         setOrders(processedOrders);
@@ -102,8 +104,8 @@ export default function AdminDashboardPage() {
         description: result.error || "Could not update order status.",
         variant: "destructive",
       });
-      setOrders(originalOrders);
-      calculateSummaryMetrics(originalOrders);
+      setOrders(originalOrders); // Revert to original on failure
+      calculateSummaryMetrics(originalOrders); // Recalculate metrics based on reverted orders
     }
   };
 
@@ -184,7 +186,7 @@ export default function AdminDashboardPage() {
                   No orders found.
                 </div>
               ) : (
-                <Table>
+                <Table className="min-w-[1000px]">
                   <TableHeader className="sticky top-0 bg-secondary/80 backdrop-blur-sm z-10">
                     <TableRow>
                       <TableHead className="whitespace-nowrap">Order ID</TableHead>
@@ -257,5 +259,7 @@ export default function AdminDashboardPage() {
       </section>
     </div>
   );
+
+    
 
     
