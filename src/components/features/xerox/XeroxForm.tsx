@@ -13,7 +13,8 @@ import { PaymentSection } from "./PaymentSection";
 import { PrintPreview } from "./PrintPreview";
 import { useToast } from "@/hooks/use-toast";
 import { PDFDocument } from 'pdf-lib';
-import { submitOrderToFirebase, type OrderFormPayload } from '@/app/actions/submitOrder';
+// Changed the import to use the new MongoDB action
+import { submitOrderToMongoDB, type OrderFormPayload } from '@/app/actions/submitOrder'; 
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
 
@@ -37,7 +38,7 @@ export default function XeroxForm() {
 
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [fileDataUri, setFileDataUri] = useState<string | null>(null); // For storing file as base64
+  const [fileDataUri, setFileDataUri] = useState<string | null>(null); 
 
   const [numPagesStr, setNumPagesStr] = useState<string>("1");
   const [numCopiesStr, setNumCopiesStr] = useState<string>("1");
@@ -66,10 +67,9 @@ export default function XeroxForm() {
   const handleFileChange = async (selectedFile: File | null) => {
     setFile(selectedFile);
     setFileName(selectedFile ? selectedFile.name : null);
-    setFileDataUri(null); // Reset file data URI
+    setFileDataUri(null); 
   
     if (selectedFile) {
-      // File size validation
       if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
         toast({
           title: "File Too Large",
@@ -96,7 +96,6 @@ export default function XeroxForm() {
         setNumPagesStr(pageCount.toString());
         setPageCountStatus('detected');
         
-        // Convert ArrayBuffer to base64 data URI for server action
         const dataUri = arrayBufferToDataUri(arrayBuffer, selectedFile.type);
         setFileDataUri(dataUri);
 
@@ -125,7 +124,7 @@ export default function XeroxForm() {
   const validateForm = useCallback(() => {
     const numP = parseInt(numPagesStr);
     const numC = parseInt(numCopiesStr);
-    const isFileValid = !!file && !!fileDataUri; // Ensure file data is also ready
+    const isFileValid = !!file && !!fileDataUri; 
     const arePrintSettingsValid = !isNaN(numP) && numP > 0 && !isNaN(numC) && numC > 0 && pageCountStatus !== 'processing';
     const isAddressValid = 
         deliveryAddress.street.trim() !== "" &&
@@ -171,7 +170,7 @@ export default function XeroxForm() {
   }, [printCost, deliveryFee]);
 
   const handleSubmitOrder = async () => {
-    if (!validateForm() || !fileDataUri) { // Also check fileDataUri explicitly here
+    if (!validateForm() || !fileDataUri) { 
         toast({
             title: "Incomplete Order",
             description: "Please upload a PDF, ensure it's processed, set print options, and provide a delivery address.",
@@ -188,7 +187,7 @@ export default function XeroxForm() {
 
     const orderPayload: OrderFormPayload = {
       fileName,
-      fileDataUri, // Add file data URI to payload
+      fileDataUri, 
       numPages: numPagesStr,
       numCopies: numCopiesStr,
       printColor,
@@ -200,7 +199,8 @@ export default function XeroxForm() {
     };
 
     try {
-      const result = await submitOrderToFirebase(orderPayload);
+      // Changed to use the MongoDB submission action
+      const result = await submitOrderToMongoDB(orderPayload); 
       if (result.success) {
         toast({
           title: "Order Submitted!",
@@ -210,7 +210,7 @@ export default function XeroxForm() {
       } else {
         toast({
           title: "Order Submission Failed",
-          description: result.error || "An unknown error occurred while submitting to Firebase.",
+          description: result.error || "An unknown error occurred while submitting to the database.",
           variant: "destructive",
         });
       }
@@ -305,4 +305,3 @@ export default function XeroxForm() {
     </div>
   );
 }
-

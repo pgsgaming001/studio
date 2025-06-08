@@ -2,26 +2,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, query, orderBy, type Timestamp } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns"; // parseISO is needed for date strings
 import { Package, DollarSign, ListChecks, AlertTriangle, Loader2, FileText, Palette, CopyIcon, Scaling, MapPin, CalendarDays, Download } from "lucide-react";
-import type { OrderData as SubmittedOrderData } from "@/app/actions/submitOrder";
+import { getOrdersFromMongoDB, type OrderDisplayData as FetchedOrderData } from "@/app/actions/getOrders"; // Import new action and type
 
-// Extended OrderData for display, including Firestore document ID and JS Date
-interface OrderDisplayData extends SubmittedOrderData {
-  id: string;
-  createdAt: Date; // Firestore Timestamp is converted to JS Date
-  // pdfDownloadURL is already optional in SubmittedOrderData
+// Data structure for display in the dashboard
+interface OrderDisplayDataInternal extends Omit<FetchedOrderData, 'createdAt'> {
+  createdAt: Date; // Convert ISO string back to Date for formatting
 }
 
 export default function AdminDashboardPage() {
-  const [orders, setOrders] = useState<OrderDisplayData[]>([]);
+  const [orders, setOrders] = useState<OrderDisplayDataInternal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,47 +27,35 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!db) {
-        setError("Firebase Firestore client is not initialized.");
-        setIsLoading(false);
-        return;
-      }
+      setIsLoading(true);
+      setError(null);
       try {
-        const ordersCollection = collection(db, "orders");
-        const q = query(ordersCollection, orderBy("createdAt", "desc"));
-        const querySnapshot = await getDocs(q);
-        const fetchedOrders: OrderDisplayData[] = [];
+        const result = await getOrdersFromMongoDB();
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
         let revenue = 0;
         let pendingCount = 0;
 
-        querySnapshot.forEach((doc) => {
-          const data = doc.data() as SubmittedOrderData;
-          let createdAtDate: Date;
-          if (data.createdAt && typeof (data.createdAt as any).toDate === 'function') {
-            createdAtDate = (data.createdAt as Timestamp).toDate();
-          } else if (data.createdAt instanceof Date) {
-            createdAtDate = data.createdAt;
-          } else {
-            createdAtDate = new Date(); 
-          }
-
-          fetchedOrders.push({
-            ...data,
-            id: doc.id,
-            createdAt: createdAtDate,
-          });
-          revenue += data.totalCost || 0;
-          if (data.status === "pending") {
+        const processedOrders: OrderDisplayDataInternal[] = result.orders.map((order) => {
+          revenue += order.totalCost || 0;
+          if (order.status === "pending") {
             pendingCount++;
           }
+          return {
+            ...order,
+            createdAt: parseISO(order.createdAt), // Convert ISO string back to Date
+          };
         });
 
-        setOrders(fetchedOrders);
-        setTotalOrders(fetchedOrders.length);
+        setOrders(processedOrders);
+        setTotalOrders(processedOrders.length);
         setPendingOrders(pendingCount);
         setTotalRevenue(revenue);
       } catch (err: any) {
-        console.error("Error fetching orders:", err);
+        console.error("Error fetching orders for dashboard:", err);
         setError(`Failed to fetch orders: ${err.message}`);
       } finally {
         setIsLoading(false);
@@ -96,7 +80,7 @@ export default function AdminDashboardPage() {
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
         <p className="text-xl text-destructive font-semibold">Error Loading Dashboard</p>
         <p className="text-muted-foreground text-center max-w-md mt-2">{error}</p>
-        <p className="text-xs text-muted-foreground mt-4">Please check console for more details and ensure Firebase is configured correctly.</p>
+        <p className="text-xs text-muted-foreground mt-4">Please check console for more details and ensure MongoDB is configured correctly.</p>
       </div>
     );
   }
@@ -105,7 +89,7 @@ export default function AdminDashboardPage() {
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <header className="mb-8">
         <h1 className="font-headline text-4xl font-bold text-primary">Admin Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Overview of print orders and key metrics.</p>
+        <p className="text-muted-foreground mt-1">Overview of print orders and key metrics (MongoDB).</p>
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
