@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { CheckCircle, Home } from "lucide-react";
@@ -15,7 +16,7 @@ export default function OrderConfirmationPage() {
         </CardHeader>
         <CardContent className="text-center space-y-4 p-8">
           <p className="text-muted-foreground text-base">
-            Thank you for your order with <span className="font-semibold text-primary">Xerox<span className="text-accent">2</span>U</span>. Your documents are now in our queue to be printed and prepared for delivery.
+            Thank you for your order with <span className="font-semibold text-primary">My First Project</span>. Your documents are now in our queue to be printed and prepared for delivery.
           </p>
           <p className="text-muted-foreground text-sm">
             A confirmation email with your order details has been sent to your registered email address (this is a placeholder notification).

@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"; // Added Toaster
 
 export const metadata: Metadata = {
-  title: 'Xerox2U',
+  title: 'My First Project',
   description: 'Upload PDF, print, and deliver to your home.',
 };
 
