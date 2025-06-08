@@ -8,17 +8,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns"; // parseISO is not needed if createdAt remains string
 import { Package, DollarSign, ListChecks, AlertTriangle, Loader2, FileText, Palette, CopyIcon, Scaling, MapPin, CalendarDays, Download } from "lucide-react";
 import { getOrdersFromMongoDB, type OrderDisplayData as FetchedOrderData } from "@/app/actions/getOrders";
 import { updateOrderStatus, type OrderStatus } from "@/app/actions/updateOrderStatus";
 
-// Define valid statuses
 const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
-interface OrderDisplayDataInternal extends Omit<FetchedOrderData, 'createdAt' | 'status'> {
-  createdAt: Date;
-  status: OrderStatus;
+// OrderDisplayDataInternal will now keep createdAt as string, as received from FetchedOrderData
+interface OrderDisplayDataInternal extends Omit<FetchedOrderData, 'status'> {
+  status: OrderStatus; // Override status type from string to OrderStatus
 }
 
 export default function AdminDashboardPage() {
@@ -56,10 +55,11 @@ export default function AdminDashboardPage() {
           throw new Error(result.error);
         }
         
+        // Process orders: createdAt is already a string from FetchedOrderData.
+        // status is string in FetchedOrderData, cast it to OrderStatus for internal use.
         const processedOrders: OrderDisplayDataInternal[] = result.orders.map((order) => ({
-            ...order,
-            createdAt: parseISO(order.createdAt),
-            status: order.status as OrderStatus, // Ensure status conforms to OrderStatus type
+            ...order, // Spread order (FetchedOrderData), createdAt remains string
+            status: order.status as OrderStatus, 
           }));
 
         setOrders(processedOrders);
@@ -78,7 +78,6 @@ export default function AdminDashboardPage() {
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     const originalOrders = [...orders];
     
-    // Optimistically update UI
     const updatedOptimisticOrders = orders.map(order => 
       order.id === orderId ? { ...order, status: newStatus } : order
     );
@@ -92,10 +91,11 @@ export default function AdminDashboardPage() {
         title: "Status Updated",
         description: `Order ${orderId.substring(0,8)} status changed to ${newStatus}.`,
       });
-      // Confirm update with server response (optional, if optimistic is enough)
-      // For robustness, re-update with server data to ensure consistency
+      // Confirm update with server response. result.updatedOrder.createdAt is already a string.
       const finalOrders = orders.map(order => 
-        order.id === result.updatedOrder!.id ? { ...order, status: result.updatedOrder!.status as OrderStatus, createdAt: parseISO(result.updatedOrder!.createdAt) } : order
+        order.id === result.updatedOrder!.id 
+          ? { ...order, status: result.updatedOrder!.status as OrderStatus, createdAt: result.updatedOrder!.createdAt } 
+          : order
       );
       setOrders(finalOrders);
       calculateSummaryMetrics(finalOrders);
@@ -106,7 +106,6 @@ export default function AdminDashboardPage() {
         description: result.error || "Could not update order status.",
         variant: "destructive",
       });
-      // Revert optimistic update
       setOrders(originalOrders);
       calculateSummaryMetrics(originalOrders);
     }
@@ -249,6 +248,7 @@ export default function AdminDashboardPage() {
                         </TableCell>
                         <TableCell className="text-right">${order.totalCost.toFixed(2)}</TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
+                          {/* format can take an ISO string directly */}
                           {format(order.createdAt, "MMM d, HH:mm")}
                         </TableCell>
                       </TableRow>

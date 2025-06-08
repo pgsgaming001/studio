@@ -42,13 +42,21 @@ export async function updateOrderStatus(
       return { success: false, error: 'Order not found or status not updated.' };
     }
     
-    const updatedDoc = result as OrderDataMongo; // result is the updated doc
+    const updatedDoc = result as OrderDataMongo; 
 
     // Map MongoDB document to client-friendly format
+    const { _id, createdAt, deliveryAddress, ...restOfUpdatedDoc } = updatedDoc;
     const displayOrder: OrderDisplayData = {
-      ...updatedDoc,
-      id: updatedDoc._id!.toString(),
-      createdAt: updatedDoc.createdAt.toISOString(),
+      ...restOfUpdatedDoc,
+      id: _id!.toString(),
+      createdAt: createdAt.toISOString(),
+       deliveryAddress: { // Ensure deliveryAddress is correctly structured
+          street: deliveryAddress.street,
+          city: deliveryAddress.city,
+          state: deliveryAddress.state,
+          zip: deliveryAddress.zip,
+          country: deliveryAddress.country,
+        },
     };
     
     return { success: true, updatedOrder: displayOrder };
