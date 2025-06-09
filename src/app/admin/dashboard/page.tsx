@@ -4,12 +4,11 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-// import { ScrollArea } from "@/components/ui/scroll-area"; // Removed ScrollArea
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Package, DollarSign, ListChecks, AlertTriangle, Loader2, FileText, Palette, CopyIcon, Scaling, MapPin, CalendarDays, Download } from "lucide-react";
+import { Package, DollarSign, ListChecks, AlertTriangle, Loader2, FileText, Palette, CopyIcon, Scaling, MapPin, CalendarDays, Download, Printer } from "lucide-react";
 import { getOrdersFromMongoDB, type OrderDisplayData as FetchedOrderData } from "@/app/actions/getOrders";
 import { updateOrderStatus, type OrderStatus } from "@/app/actions/updateOrderStatus";
 
@@ -17,10 +16,10 @@ const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'shipped', 'deli
 
 interface OrderDisplayDataInternal extends Omit<FetchedOrderData, 'status' | 'createdAt'> {
   status: OrderStatus;
-  createdAt: string; // Keep as string
+  createdAt: string; 
 }
 
-export default function AdminDashboardPage() {
+export default function PrintServiceDashboardPage() {
   const [orders, setOrders] = useState<OrderDisplayDataInternal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,14 +57,14 @@ export default function AdminDashboardPage() {
         const processedOrders: OrderDisplayDataInternal[] = result.orders.map((order) => ({
             ...order,
             status: order.status as OrderStatus, 
-            createdAt: order.createdAt, // Already a string
+            createdAt: order.createdAt,
           }));
 
         setOrders(processedOrders);
         calculateSummaryMetrics(processedOrders);
       } catch (err: any) {
-        console.error("Error fetching orders for dashboard:", err);
-        setError(`Failed to fetch orders: ${err.message}`);
+        console.error("Error fetching print orders for dashboard:", err);
+        setError(`Failed to fetch print orders: ${err.message}`);
       } finally {
         setIsLoading(false);
       }
@@ -88,7 +87,7 @@ export default function AdminDashboardPage() {
     if (result.success && result.updatedOrder) {
       toast({
         title: "Status Updated",
-        description: `Order ${orderId.substring(0,8)} status changed to ${newStatus}.`,
+        description: `Print Order ${orderId.substring(0,8)} status changed to ${newStatus}.`,
       });
       const finalOrders = orders.map(order => 
         order.id === result.updatedOrder!.id 
@@ -101,11 +100,11 @@ export default function AdminDashboardPage() {
     } else {
       toast({
         title: "Update Failed",
-        description: result.error || "Could not update order status.",
+        description: result.error || "Could not update print order status.",
         variant: "destructive",
       });
-      setOrders(originalOrders); // Revert to original on failure
-      calculateSummaryMetrics(originalOrders); // Recalculate metrics based on reverted orders
+      setOrders(originalOrders); 
+      calculateSummaryMetrics(originalOrders); 
     }
   };
 
@@ -114,7 +113,7 @@ export default function AdminDashboardPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-secondary/50">
         <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
-        <p className="text-xl text-muted-foreground">Loading Dashboard...</p>
+        <p className="text-xl text-muted-foreground">Loading Print Service Dashboard...</p>
       </div>
     );
   }
@@ -133,39 +132,42 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <header className="mb-8">
-        <h1 className="font-headline text-4xl font-bold text-primary">Admin Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Overview of print orders and key metrics (MongoDB).</p>
+        <h1 className="font-headline text-4xl font-bold text-primary flex items-center">
+          <Printer className="mr-3 h-10 w-10" />
+          Print Service Dashboard
+        </h1>
+        <p className="text-muted-foreground mt-1">Overview of print orders and key metrics.</p>
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <Card className="shadow-lg rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Print Orders</CardTitle>
             <Package className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{totalOrders}</div>
-            <p className="text-xs text-muted-foreground">All received orders</p>
+            <p className="text-xs text-muted-foreground">All received print orders</p>
           </CardContent>
         </Card>
         <Card className="shadow-lg rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Orders</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Print Orders</CardTitle>
             <ListChecks className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{pendingOrders}</div>
-            <p className="text-xs text-muted-foreground">Orders awaiting processing</p>
+            <p className="text-xs text-muted-foreground">Print orders awaiting processing</p>
           </CardContent>
         </Card>
         <Card className="shadow-lg rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Print Revenue</CardTitle>
             <DollarSign className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">${totalRevenue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">From all orders</p>
+            <p className="text-xs text-muted-foreground">From all print orders</p>
           </CardContent>
         </Card>
       </section>
@@ -175,20 +177,19 @@ export default function AdminDashboardPage() {
           <CardHeader className="bg-primary/5">
             <CardTitle className="font-headline text-2xl text-primary flex items-center">
               <ListChecks className="mr-3 h-7 w-7" />
-              Recent Orders
+              Recent Print Orders
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {/* Replaced ScrollArea with a simple div for scrolling */}
             <div className="overflow-auto h-[600px] w-full">
               {orders.length === 0 ? (
                 <div className="text-center p-10 text-muted-foreground flex flex-col items-center justify-center h-full">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  No orders found.
+                  No print orders found.
                 </div>
               ) : (
-                <Table className="min-w-[1100px]"> {/* Increased min-width slightly */}
-                  <TableHeader className="sticky top-0 bg-secondary/95 backdrop-blur-sm z-10"> {/* Increased opacity for sticky header */}
+                <Table className="min-w-[1100px]"> 
+                  <TableHeader className="sticky top-0 bg-secondary/95 backdrop-blur-sm z-10"> 
                     <TableRow>
                       <TableHead className="whitespace-nowrap px-2 py-3">Order ID</TableHead>
                       <TableHead className="whitespace-nowrap px-2 py-3"><FileText size={16} className="inline mr-1"/>File</TableHead>
@@ -261,3 +262,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    
