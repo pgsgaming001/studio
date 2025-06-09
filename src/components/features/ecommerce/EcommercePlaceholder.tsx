@@ -1,13 +1,17 @@
 
 "use client";
 
+import { useEffect, useState } from "react"; // Added useEffect, useState
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { ArrowRight, ChevronRight, Search, ShoppingBag, Star, ThumbsUp, Zap } from "lucide-react";
-import Link from "next/link"; // Added Link
+import { ArrowRight, ChevronRight, Search, ShoppingBag, Star, ThumbsUp, Zap, AlertTriangle, Loader2 } from "lucide-react"; // Added AlertTriangle, Loader2
+import Link from "next/link";
+import { getProducts, type ProductSummary } from "@/app/actions/getProducts"; // Import the action
+import { useToast } from "@/hooks/use-toast"; // For error notifications
+
 
 const placeholderCategories = [
   { name: "Electronics", icon: Zap, dataAiHint: "gadgets technology", slug: "electronics" },
@@ -16,119 +20,10 @@ const placeholderCategories = [
   { name: "Office", icon: Search, dataAiHint: "office supplies", slug: "office" },
 ];
 
-// This data is now a placeholder. Real data will come from MongoDB.
-// Ensure your MongoDB `products` collection has documents with similar fields,
-// especially an `_id` (which MongoDB provides) or a unique `productId` string.
-const placeholderProducts = [
-  {
-    id: "prod_1", // Use a string ID that can be part of a URL
-    name: "Smart Noise-Cancelling Headphones",
-    description: "Immersive sound experience with adaptive noise cancellation. Multiple colors available. Long battery life.",
-    price: 199.99,
-    originalPrice: 249.99,
-    image: "https://placehold.co/400x400/E0E7FF/4F46E5.png?text=Headphones",
-    category: "Electronics",
-    rating: 4.5,
-    isFeatured: true,
-    dataAiHint: "headphones audio",
-  },
-  {
-    id: "prod_2",
-    name: "Ergonomic Mesh Office Chair",
-    description: "Supportive and breathable chair for long working hours. Adjustable height and lumbar support.",
-    price: 279.00,
-    image: "https://placehold.co/400x400/DBEAFE/1D4ED8.png?text=Office+Chair",
-    category: "Office",
-    rating: 4.8,
-    isFeatured: true,
-    dataAiHint: "office chair",
-  },
-  {
-    id: "prod_3",
-    name: "Minimalist Ceramic Vase Set",
-    description: "Elegant set of 3 ceramic vases for modern home decor. Perfect for flowers or as standalone pieces.",
-    price: 45.50,
-    image: "https://placehold.co/400x400/BFDBFE/1E40AF.png?text=Vase+Set",
-    category: "Home Goods",
-    rating: 4.2,
-    isFeatured: false,
-    dataAiHint: "ceramic vase",
-  },
-  {
-    id: "prod_4",
-    name: "Organic Cotton Graphic T-Shirt",
-    description: "Comfortable and stylish tee with a unique design. Made from 100% organic cotton.",
-    price: 29.99,
-    image: "https://placehold.co/400x400/93C5FD/1E3A8A.png?text=T-Shirt",
-    category: "Fashion",
-    rating: 4.0,
-    isFeatured: true,
-    dataAiHint: "graphic t-shirt",
-  },
-  {
-    id: "prod_5",
-    name: "Portable SSD - 1TB",
-    description: "Fast and reliable portable storage for your files. USB-C interface.",
-    price: 89.99,
-    image: "https://placehold.co/400x400/A5B4FC/3730A3.png?text=SSD",
-    category: "Electronics",
-    rating: 4.9,
-    isFeatured: false,
-    dataAiHint: "portable ssd",
-  },
-  {
-    id: "prod_6",
-    name: "Modern Wooden Desk Lamp",
-    description: "Adjustable arm with a warm LED light, perfect for study or work. Energy efficient.",
-    price: 65.00,
-    image: "https://placehold.co/400x400/C7D2FE/4338CA.png?text=Desk+Lamp",
-    category: "Office",
-    rating: 4.6,
-    isFeatured: false,
-    dataAiHint: "desk lamp",
-  },
-  {
-    id: "prod_7",
-    name: "Cozy Knit Throw Blanket",
-    description: "Soft and warm, ideal for chilly evenings. Large size, machine washable.",
-    price: 59.00,
-    image: "https://placehold.co/400x400/E0E7FF/4F46E5.png?text=Blanket",
-    category: "Home Goods",
-    rating: 4.7,
-    isFeatured: true,
-    dataAiHint: "throw blanket",
-  },
-  {
-    id: "prod_8",
-    name: "Classic Canvas Sneakers",
-    description: "Versatile and comfortable for everyday wear. Available in multiple sizes.",
-    price: 75.00,
-    image: "https://placehold.co/400x400/DBEAFE/1D4ED8.png?text=Sneakers",
-    category: "Fashion",
-    rating: 4.3,
-    isFeatured: false,
-    dataAiHint: "canvas sneakers",
-  },
-];
-
 // Define a more complete product type, which you should match in your MongoDB schema
-interface Product {
-  id: string; // This will be MongoDB's _id as a string
-  name: string;
-  description: string;
-  price: number;
-  originalPrice?: number;
-  image: string; // For ProductCard, assuming one primary image. Detail page might use an array.
-  images?: string[]; // For product detail page
-  category: string;
-  rating?: number;
-  isFeatured?: boolean;
-  dataAiHint?: string;
-  // Add other fields as needed for product details page
-  reviews?: { user: string; comment: string; rating: number; date: string }[];
-  relatedProductIds?: string[];
-  stock?: number;
-}
+// This is now effectively ProductSummary from getProducts.ts
+// We keep it here for ProductCard's prop type clarity, though ProductSummary could be used directly.
+interface Product extends ProductSummary {}
 
 
 const ProductCard = ({ product }: { product: Product }) => {
@@ -136,19 +31,18 @@ const ProductCard = ({ product }: { product: Product }) => {
   const hasHalfStar = product.rating ? product.rating % 1 !== 0 : false;
 
   return (
-    // Wrap Card with Link component
     <Link href={`/product/${product.id}`} passHref legacyBehavior>
       <a className="block h-full group">
         <Card className="overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-300 rounded-xl flex flex-col h-full bg-card">
           <div className="relative w-full aspect-square bg-secondary overflow-hidden">
             <Image
-              src={product.image}
+              src={product.image || "https://placehold.co/400x400.png"} // Fallback image
               alt={product.name}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               style={{ objectFit: 'cover' }}
               className="group-hover:scale-105 transition-transform duration-300"
-              data-ai-hint={product.dataAiHint}
+              data-ai-hint={product.dataAiHint || product.name.split(" ").slice(0,2).join(" ")}
             />
             {product.originalPrice && (
               <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs font-semibold px-2 py-1 rounded-full shadow-md">
@@ -189,7 +83,6 @@ const ProductCard = ({ product }: { product: Product }) => {
                   </p>
                 )}
               </div>
-              {/* Prevent Link navigation when clicking button inside the card */}
               <Button 
                 size="sm" 
                 variant="default" 
@@ -208,15 +101,65 @@ const ProductCard = ({ product }: { product: Product }) => {
 
 
 export function EcommercePlaceholder() {
-  // For now, we use placeholderProducts. In a real app, you'd fetch these from MongoDB.
-  // e.g., const [products, setProducts] = useState<Product[]>([]);
-  // useEffect(() => { /* fetch products */ }, []);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const featuredProducts = placeholderProducts.filter(p => p.isFeatured);
+  useEffect(() => {
+    const fetchStoreProducts = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Fetch featured products (e.g., limit to 8)
+        const featuredResult = await getProducts({ limit: 8, featuredOnly: true });
+        if (featuredResult.error) throw new Error(featuredResult.error);
+        setFeaturedProducts(featuredResult.products);
 
+        // Fetch all products (you might want pagination here in a real app)
+        const allResult = await getProducts({ limit: 12 }); // Example limit
+        if (allResult.error) throw new Error(allResult.error);
+        setAllProducts(allResult.products);
+
+      } catch (err: any) {
+        console.error("Error fetching store products:", err);
+        setError(err.message || "Failed to load products.");
+        toast({
+          title: "Error",
+          description: err.message || "Could not load products from the store.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStoreProducts();
+  }, [toast]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] py-12">
+        <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+        <p className="text-lg text-muted-foreground">Loading Products...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] py-12 text-center px-4">
+        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+        <p className="text-lg font-semibold text-destructive">Could Not Load Products</p>
+        <p className="text-muted-foreground mb-4">{error}</p>
+        <p className="text-sm text-muted-foreground">Please ensure the database is connected and products are available.</p>
+      </div>
+    );
+  }
+  
   return (
     <div className="space-y-12 md:space-y-16 py-8">
-      {/* Hero Section */}
       <section className="text-center px-4">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4">
           <ShoppingBag className="h-10 w-10 text-primary" />
@@ -237,7 +180,6 @@ export function EcommercePlaceholder() {
         </div>
       </section>
 
-      {/* Featured Products Section */}
       {featuredProducts.length > 0 && (
         <section className="px-4 md:px-0">
           <div className="flex justify-between items-center mb-6 px-0 md:px-4">
@@ -250,7 +192,7 @@ export function EcommercePlaceholder() {
             <div className="flex space-x-4 md:space-x-6 px-0 md:px-4">
               {featuredProducts.map((product) => (
                 <div key={product.id} className="inline-block w-[280px] sm:w-[300px] h-full">
-                   <ProductCard product={product as Product} />
+                   <ProductCard product={product} />
                 </div>
               ))}
             </div>
@@ -259,7 +201,6 @@ export function EcommercePlaceholder() {
         </section>
       )}
 
-      {/* Shop by Category Section */}
       <section className="px-4">
          <div className="flex justify-between items-center mb-6">
           <h2 className="font-headline text-3xl font-semibold text-foreground">Shop by Category</h2>
@@ -287,7 +228,6 @@ export function EcommercePlaceholder() {
         </div>
       </section>
       
-      {/* Special Offer Banner Example - Could be more dynamic */}
       <section className="px-4">
          <div className="bg-gradient-to-r from-primary to-accent text-primary-foreground p-8 md:p-12 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between">
             <div>
@@ -300,28 +240,33 @@ export function EcommercePlaceholder() {
         </div>
       </section>
 
-
-      {/* All Products Section */}
-      <section className="px-4">
-        <div className="flex justify-between items-center mb-6">
-            <h2 className="font-headline text-3xl font-semibold text-foreground">Discover More</h2>
-             <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary">
-                Filter & Sort
-            </Button>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {placeholderProducts.map((product) => (
-             <ProductCard key={product.id} product={product as Product} />
-          ))}
-        </div>
-        <div className="text-center mt-10">
-            <Button size="lg" variant="outline" className="text-base px-8 py-6 border-2 border-primary text-primary hover:bg-primary/10 hover:text-primary shadow-sm hover:shadow-md transition-shadow">
-                Load More Products
-            </Button>
-        </div>
-      </section>
+      {allProducts.length > 0 ? (
+        <section className="px-4">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="font-headline text-3xl font-semibold text-foreground">Discover More</h2>
+                <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary">
+                    Filter & Sort
+                </Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            {allProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+            ))}
+            </div>
+            <div className="text-center mt-10">
+                <Button size="lg" variant="outline" className="text-base px-8 py-6 border-2 border-primary text-primary hover:bg-primary/10 hover:text-primary shadow-sm hover:shadow-md transition-shadow">
+                    Load More Products
+                </Button>
+            </div>
+        </section>
+      ) : (
+        !isLoading && !error && ( // Only show if not loading and no error
+             <section className="px-4 text-center">
+                 <h2 className="font-headline text-3xl font-semibold text-foreground mb-4">No Products Yet</h2>
+                 <p className="text-muted-foreground">Check back soon, or if you're an admin, add some products!</p>
+             </section>
+        )
+      )}
     </div>
   );
 }
-
-    
