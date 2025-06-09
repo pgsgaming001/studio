@@ -1,111 +1,283 @@
 
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { ShoppingBag, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ArrowRight, ChevronRight, Search, ShoppingBag, Star, ThumbsUp, Zap } from "lucide-react";
+
+const placeholderCategories = [
+  { name: "Electronics", icon: Zap, dataAiHint: "gadgets technology" },
+  { name: "Home Goods", icon: ThumbsUp, dataAiHint: "home decor" },
+  { name: "Fashion", icon: ShoppingBag, dataAiHint: "apparel clothing" },
+  { name: "Office", icon: Search, dataAiHint: "office supplies" }, // Using Search as a placeholder icon
+];
 
 const placeholderProducts = [
   {
     id: 1,
-    name: "Modern Desk Lamp",
-    description: "Sleek and minimalist design, perfect for any workspace.",
-    price: "$49.99",
-    image: "https://placehold.co/300x300/E0E7FF/4F46E5.png?text=Lamp",
-    dataAiHint: "desk lamp",
+    name: "Smart Noise-Cancelling Headphones",
+    description: "Immersive sound experience with adaptive noise cancellation.",
+    price: 199.99,
+    originalPrice: 249.99,
+    image: "https://placehold.co/400x400/E0E7FF/4F46E5.png?text=Headphones",
+    category: "Electronics",
+    rating: 4.5,
+    isFeatured: true,
+    dataAiHint: "headphones audio",
   },
   {
     id: 2,
-    name: "Wireless Ergonomic Mouse",
-    description: "Comfortable and responsive, designed for long hours of use.",
-    price: "$34.50",
-    image: "https://placehold.co/300x300/DBEAFE/1D4ED8.png?text=Mouse",
-    dataAiHint: "computer mouse",
+    name: "Ergonomic Mesh Office Chair",
+    description: "Supportive and breathable chair for long working hours.",
+    price: 279.00,
+    image: "https://placehold.co/400x400/DBEAFE/1D4ED8.png?text=Office+Chair",
+    category: "Office",
+    rating: 4.8,
+    isFeatured: true,
+    dataAiHint: "office chair",
   },
   {
     id: 3,
-    name: "Indoor Plant Pot",
-    description: "Stylish ceramic pot to brighten up your home or office.",
-    price: "$22.00",
-    image: "https://placehold.co/300x300/BFDBFE/1E40AF.png?text=Plant+Pot",
-    dataAiHint: "plant pot",
+    name: "Minimalist Ceramic Vase Set",
+    description: "Elegant set of 3 ceramic vases for modern home decor.",
+    price: 45.50,
+    image: "https://placehold.co/400x400/BFDBFE/1E40AF.png?text=Vase+Set",
+    category: "Home Goods",
+    rating: 4.2,
+    isFeatured: false,
+    dataAiHint: "ceramic vase",
   },
-   {
+  {
     id: 4,
-    name: "Minimalist Wall Clock",
-    description: "Elegant and silent wall clock with a modern touch.",
-    price: "$55.75",
-    image: "https://placehold.co/300x300/93C5FD/1E3A8A.png?text=Clock",
-    dataAiHint: "wall clock",
+    name: "Organic Cotton Graphic T-Shirt",
+    description: "Comfortable and stylish tee with a unique design.",
+    price: 29.99,
+    image: "https://placehold.co/400x400/93C5FD/1E3A8A.png?text=T-Shirt",
+    category: "Fashion",
+    rating: 4.0,
+    isFeatured: true,
+    dataAiHint: "graphic t-shirt",
+  },
+  {
+    id: 5,
+    name: "Portable SSD - 1TB",
+    description: "Fast and reliable portable storage for your files.",
+    price: 89.99,
+    image: "https://placehold.co/400x400/A5B4FC/3730A3.png?text=SSD",
+    category: "Electronics",
+    rating: 4.9,
+    isFeatured: false,
+    dataAiHint: "portable ssd",
+  },
+  {
+    id: 6,
+    name: "Modern Wooden Desk Lamp",
+    description: "Adjustable arm with a warm LED light, perfect for study or work.",
+    price: 65.00,
+    image: "https://placehold.co/400x400/C7D2FE/4338CA.png?text=Desk+Lamp",
+    category: "Office",
+    rating: 4.6,
+    isFeatured: false,
+    dataAiHint: "desk lamp",
+  },
+  {
+    id: 7,
+    name: "Cozy Knit Throw Blanket",
+    description: "Soft and warm, ideal for chilly evenings.",
+    price: 59.00,
+    image: "https://placehold.co/400x400/E0E7FF/4F46E5.png?text=Blanket",
+    category: "Home Goods",
+    rating: 4.7,
+    isFeatured: true,
+    dataAiHint: "throw blanket",
+  },
+  {
+    id: 8,
+    name: "Classic Canvas Sneakers",
+    description: "Versatile and comfortable for everyday wear.",
+    price: 75.00,
+    image: "https://placehold.co/400x400/DBEAFE/1D4ED8.png?text=Sneakers",
+    category: "Fashion",
+    rating: 4.3,
+    isFeatured: false,
+    dataAiHint: "canvas sneakers",
   },
 ];
 
-export function EcommercePlaceholder() {
-  return (
-    <div className="space-y-8">
-      <Card className="text-center bg-card shadow-lg rounded-xl">
-        <CardHeader className="p-6 md:p-8">
-          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-4">
-            <ShoppingBag className="h-8 w-8 text-primary" />
-          </div>
-          <CardTitle className="font-headline text-3xl md:text-4xl text-primary">
-            Our Online Store
-          </CardTitle>
-          <CardDescription className="text-muted-foreground text-base md:text-lg mt-2 max-w-xl mx-auto">
-            Browse our curated selection of products. More exciting items are added regularly!
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6 md:p-8">
-           <div className="relative max-w-md mx-auto mb-8">
-            <Input
-              type="search"
-              placeholder="Search products..."
-              className="pl-10 h-11 text-base rounded-lg shadow-inner"
-            />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          </div>
+const ProductCard = ({ product }: { product: typeof placeholderProducts[0] }) => {
+  const filledStars = Math.floor(product.rating);
+  const hasHalfStar = product.rating % 1 !== 0;
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {placeholderProducts.map((product) => (
-              <Card key={product.id} className="overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 rounded-lg flex flex-col">
-                <div className="relative w-full h-56 bg-secondary">
-                  <Image
-                    src={product.image}
-                    alt={product.name}
-                    layout="fill"
-                    objectFit="cover"
-                    data-ai-hint={product.dataAiHint}
-                  />
-                </div>
-                <CardHeader className="p-4 flex-grow">
-                  <CardTitle className="text-lg font-semibold text-card-foreground">{product.name}</CardTitle>
-                  <CardDescription className="text-xs text-muted-foreground mt-1 h-10 overflow-hidden">
-                    {product.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  <div className="flex justify-between items-center mt-2">
-                    <p className="text-xl font-bold text-primary">{product.price}</p>
-                    <Button size="sm" variant="outline" className="bg-primary/10 hover:bg-primary/20 text-primary border-primary/30 hover:border-primary/50">
-                      Add to Cart
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+  return (
+    <Card className="overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 rounded-xl flex flex-col h-full bg-card">
+      <div className="relative w-full aspect-square bg-secondary overflow-hidden">
+        <Image
+          src={product.image}
+          alt={product.name}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          style={{ objectFit: 'cover' }}
+          className="hover:scale-105 transition-transform duration-300"
+          data-ai-hint={product.dataAiHint}
+        />
+        {product.originalPrice && (
+          <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs font-semibold px-2 py-1 rounded-full shadow-md">
+            SALE
           </div>
-           <Button variant="link" className="mt-8 text-primary mx-auto block">
-            View All Products &rarr;
+        )}
+      </div>
+      <CardHeader className="p-4 flex-grow">
+        <p className="text-xs text-muted-foreground uppercase tracking-wider">{product.category}</p>
+        <CardTitle className="text-lg font-semibold text-card-foreground mt-1 leading-tight h-12 overflow-hidden">
+          {product.name}
+        </CardTitle>
+        <CardDescription className="text-xs text-muted-foreground mt-1 h-10 overflow-hidden">
+          {product.description}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <div className="flex items-center mb-2">
+          {[...Array(filledStars)].map((_, i) => (
+            <Star key={`filled-${i}`} className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+          ))}
+          {hasHalfStar && <Star key="half" className="h-4 w-4 text-yellow-400 fill-yellow-200" />} 
+          {[...Array(5 - filledStars - (hasHalfStar ? 1 : 0))].map((_, i) => (
+            <Star key={`empty-${i}`} className="h-4 w-4 text-muted-foreground/50 fill-muted-foreground/20" />
+          ))}
+          <span className="ml-2 text-xs text-muted-foreground">({product.rating.toFixed(1)})</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-xl font-bold text-primary">
+              ${product.price.toFixed(2)}
+            </p>
+            {product.originalPrice && (
+              <p className="text-xs text-muted-foreground line-through">
+                ${product.originalPrice.toFixed(2)}
+              </p>
+            )}
+          </div>
+          <Button size="sm" variant="default" className="shadow-md hover:shadow-lg transition-shadow">
+            <ShoppingBag className="mr-1.5 h-4 w-4" /> Add to Cart
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+export function EcommercePlaceholder() {
+  const featuredProducts = placeholderProducts.filter(p => p.isFeatured);
+
+  return (
+    <div className="space-y-12 md:space-y-16 py-8">
+      {/* Hero Section */}
+      <section className="text-center px-4">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4">
+          <ShoppingBag className="h-10 w-10 text-primary" />
+        </div>
+        <h1 className="font-headline text-4xl sm:text-5xl font-bold text-primary mb-3">
+          Welcome to Our Store!
+        </h1>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+          Discover amazing products, curated collections, and unbeatable deals. Happy shopping!
+        </p>
+        <div className="relative max-w-xl mx-auto">
+          <Input
+            type="search"
+            placeholder="Search for products, brands, and more..."
+            className="pl-12 pr-4 h-12 text-base rounded-full shadow-lg focus-visible:ring-primary focus-visible:ring-2 border-border/50"
+          />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        </div>
+      </section>
+
+      {/* Featured Products Section */}
+      {featuredProducts.length > 0 && (
+        <section className="px-4 md:px-0">
+          <div className="flex justify-between items-center mb-6 px-0 md:px-4">
+            <h2 className="font-headline text-3xl font-semibold text-foreground">Featured Picks</h2>
+            <Button variant="link" className="text-primary">
+              View All <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+          <ScrollArea className="w-full whitespace-nowrap pb-4">
+            <div className="flex space-x-4 md:space-x-6 px-0 md:px-4">
+              {featuredProducts.map((product) => (
+                <div key={product.id} className="inline-block w-[280px] sm:w-[300px] h-full">
+                   <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" className="mt-2" />
+          </ScrollArea>
+        </section>
+      )}
+
+      {/* Shop by Category Section */}
+      <section className="px-4">
+         <div className="flex justify-between items-center mb-6">
+          <h2 className="font-headline text-3xl font-semibold text-foreground">Shop by Category</h2>
+           <Button variant="link" className="text-primary">
+              All Categories <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          {placeholderCategories.map((category) => (
+            <Card 
+              key={category.name} 
+              className="group overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 rounded-xl aspect-[4/3] flex flex-col items-center justify-center text-center p-4 cursor-pointer hover:bg-primary/5"
+              data-ai-hint={category.dataAiHint}
+            >
+              <div className="p-3 bg-primary/10 rounded-full mb-3 group-hover:bg-primary/20 transition-colors">
+                 <category.icon className="h-8 w-8 text-primary transition-transform group-hover:scale-110" />
+              </div>
+              <p className="font-semibold text-lg text-card-foreground group-hover:text-primary">{category.name}</p>
+              <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
+            </Card>
+          ))}
+        </div>
+      </section>
+      
+      {/* Special Offer Banner Example - Could be more dynamic */}
+      <section className="px-4">
+         <div className="bg-gradient-to-r from-primary to-accent text-primary-foreground p-8 md:p-12 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between">
+            <div>
+                <h3 className="text-3xl md:text-4xl font-bold mb-2">Limited Time Offer!</h3>
+                <p className="text-lg md:text-xl opacity-90 mb-4 md:mb-0">Get 25% off on all Electronics. Use code: <span className="font-bold bg-background/20 px-2 py-1 rounded">SUMMER25</span></p>
+            </div>
+            <Button variant="secondary" size="lg" className="bg-background text-primary hover:bg-background/90 mt-4 md:mt-0 shadow-md text-base">
+                Shop Now <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+        </div>
+      </section>
+
+
+      {/* All Products Section */}
+      <section className="px-4">
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="font-headline text-3xl font-semibold text-foreground">Discover More</h2>
+             <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary">
+                Filter & Sort
+            </Button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          {placeholderProducts.map((product) => (
+             <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+        <div className="text-center mt-10">
+            <Button size="lg" variant="outline" className="text-base px-8 py-6 border-2 border-primary text-primary hover:bg-primary/10 hover:text-primary shadow-sm hover:shadow-md transition-shadow">
+                Load More Products
+            </Button>
+        </div>
+      </section>
     </div>
   );
 }
 
-// Need to add Input component if not globally available
-// For now, let's assume it's available or define a simple one.
-// If XeroxForm has Input, this should be fine.
-// If not, and you get an error, we might need to import it:
-import { Input } from "@/components/ui/input";
+    
