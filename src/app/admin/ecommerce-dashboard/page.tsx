@@ -14,11 +14,11 @@ import { getProducts, type ProductSummary } from "@/app/actions/getProducts";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation"; // Import useRouter
 
-// Placeholder summary data, can be made dynamic later
-const ecommerceSummary = {
-  totalActiveProducts: 0, // Will be calculated
-  totalSalesMonth: 12560.75, // Static for now
-  newCustomersMonth: 32, // Static for now
+// Placeholder summary data, initialized to more sensible defaults
+const initialEcommerceSummary = {
+  totalActiveProducts: 0, // Will be calculated dynamically
+  totalSalesMonth: 0.00,  // Changed to 0
+  newCustomersMonth: 0,   // Changed to 0
 };
 
 export default function EcommerceDashboardPage() {
@@ -28,7 +28,7 @@ export default function EcommerceDashboardPage() {
   const { toast } = useToast();
   const router = useRouter(); // Initialize useRouter
 
-  const [summaryData, setSummaryData] = useState(ecommerceSummary);
+  const [summaryData, setSummaryData] = useState(initialEcommerceSummary);
 
   useEffect(() => {
     const fetchAdminProducts = async () => {
@@ -41,7 +41,7 @@ export default function EcommerceDashboardPage() {
         }
         setProducts(result.products);
         setSummaryData(prev => ({
-          ...prev,
+          ...prev, // Keeps totalSalesMonth and newCustomersMonth as their initial values (now 0)
           totalActiveProducts: result.products.filter(p => p.status === 'active').length
         }));
       } catch (err: any) {
@@ -59,12 +59,6 @@ export default function EcommerceDashboardPage() {
 
     fetchAdminProducts();
   }, [toast]);
-
-  // Removed handleAddProduct, will use Link or router.push now
-  // const handleAddProduct = () => {
-  //   router.push('/admin/ecommerce-dashboard/add-product');
-  // };
-
 
   const handleEditProduct = (productId: string) => {
     // TODO: Implement navigation or modal for editing product `productId`
@@ -198,7 +192,7 @@ export default function EcommerceDashboardPage() {
                         <TableCell className="text-right px-3 py-3">${product.price.toFixed(2)}</TableCell>
                         <TableCell className="text-center px-3 py-3">{product.stock ?? 'N/A'}</TableCell>
                         <TableCell className="px-3 py-3">
-                          <Badge variant={product.status === 'active' ? 'default' : 'outline'} className={product.status === 'active' ? 'bg-green-500/20 text-green-700 border-green-400' : 'bg-yellow-500/20 text-yellow-700 border-yellow-400'}>
+                          <Badge variant={product.status === 'active' ? 'default' : 'outline'} className={product.status === 'active' ? 'bg-green-500/20 text-green-700 border-green-400' : product.status === 'draft' ? 'bg-yellow-500/20 text-yellow-700 border-yellow-400' : 'bg-gray-500/20 text-gray-700 border-gray-400'}>
                             {product.status ? product.status.charAt(0).toUpperCase() + product.status.slice(1) : 'N/A'}
                           </Badge>
                         </TableCell>
@@ -224,12 +218,12 @@ export default function EcommerceDashboardPage() {
           <CardHeader>
             <CardTitle className="font-headline text-2xl text-primary flex items-center">
               <BarChart3 className="mr-3 h-7 w-7" />
-              Sales Analytics (Placeholder)
+              Sales Analytics
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64 flex items-center justify-center bg-secondary/30 rounded-md">
-              <p className="text-muted-foreground">E-commerce charts and analytics will be displayed here.</p>
+              <p className="text-muted-foreground">Charts and analytics based on real sales data will be displayed here (placeholder).</p>
             </div>
           </CardContent>
         </Card>
