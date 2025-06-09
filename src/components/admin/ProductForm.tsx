@@ -125,6 +125,8 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
         }
     }
     
+    // Construct the payload for the server action
+    // Ensure `tags` is sent as a string, as the server schema expects a string for transformation
     const productPayload: ProductFormPayload & { imageDataUris?: string[] } = {
         name: data.name,
         description: data.description,
@@ -132,11 +134,11 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
         price: data.price,
         originalPrice: data.originalPrice,
         stock: data.stock,
-        tags: data.tags ? data.tags.split(',').map(t => t.trim()).filter(t => t) : [],
+        tags: data.tags || "", // Send the raw string from the form, or empty string if undefined
         status: data.status,
         isFeatured: data.isFeatured,
-        images: [], // This will be populated by server action from imageDataUris
-        imageDataUris: imageDataUris, // Send actual image data
+        images: [], // This will be populated by server action from imageDataUris if using original schema
+        imageDataUris: imageDataUris, 
     };
 
 
@@ -306,3 +308,6 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
     </form>
   );
 }
+
+
+    
