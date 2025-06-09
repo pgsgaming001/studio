@@ -4,45 +4,52 @@
 import { connectToDatabase } from '@/lib/mongodb';
 import type { ObjectId } from 'mongodb';
 
-// This interface should align with what ProductCard expects and what getProductById provides
-// It's essentially ProductDisplayData but potentially as an array
+// This interface is for the product data displayed in lists (e.g., storefront cards, admin list)
 export interface ProductSummary {
   id: string; // String version of _id
   name: string;
-  description: string;
+  description: string; // Full description
   price: number;
   originalPrice?: number;
-  image: string;
+  image: string; // Main image for card/thumbnail view
   category: string;
   rating?: number;
   isFeatured?: boolean;
   dataAiHint?: string;
+  stock?: number; // Added stock
+  status?: 'active' | 'inactive' | 'draft'; // Added status
 }
 
 // This interface matches the MongoDB document structure for products
-interface ProductMongo extends Omit<ProductSummary, 'id' | 'description'> {
+interface ProductMongo extends Omit<ProductSummary, 'id' | 'dataAiHint'> {
   _id: ObjectId;
-  description: string; // Keep full description here
-  images?: string[];
+  // dataAiHint is not stored in DB, generated on client or not used for admin
+  images?: string[]; // Array of images for product detail page
   reviews?: {
     user: string;
     comment: string;
     rating: number;
-    date: Date | string; // Store as Date in DB, convert to string for client
+    date: Date | string;
   }[];
-  stock?: number;
-  // Add other fields that exist in your MongoDB products collection
+  tags?: string[];
+  // isFeatured is already in ProductSummary
 }
 
 
 export async function getProducts(
-  { limit, featuredOnly }: { limit?: number; featuredOnly?: boolean } = {}
+  { limit, featuredOnly, categoryFilter }: { limit?: number; featuredOnly?: boolean; categoryFilter?: string } = {}
 ): Promise<{ products: ProductSummary[]; error?: string }> {
   try {
     const { db } = await connectToDatabase();
     const productsCollection = db.collection<ProductMongo>('products');
     
-    const query = featuredOnly ? { isFeatured: true } : {};
+    const query: any = {};
+    if (featuredOnly) {
+      query.isFeatured = true;
+    }
+    if (categoryFilter) {
+      query.category = categoryFilter;
+    }
     
     let cursor = productsCollection.find(query);
 
@@ -54,15 +61,14 @@ export async function getProducts(
     const fetchedProducts = await cursor.toArray();
 
     const displayProducts: ProductSummary[] = fetchedProducts.map(product => {
-      const { _id, ...restOfProduct } = product;
+      const { _id, description, ...restOfProduct } = product;
       return {
         ...restOfProduct,
         id: _id.toString(),
-        // For ProductCard, we might want a snippet of the description
-        description: restOfProduct.description.length > 100 
-          ? restOfProduct.description.substring(0, 100) + "..." 
-          : restOfProduct.description,
+        description: description, // Return full description
         // Ensure all other fields expected by ProductSummary are present
+        // (name, price, image, category are already in restOfProduct if mapped from ProductSummary)
+        // stock and status are also in restOfProduct if present in ProductMongo
       };
     });
     
