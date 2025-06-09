@@ -16,23 +16,37 @@ export interface ProductSummary {
   rating?: number;
   isFeatured?: boolean;
   dataAiHint?: string;
-  stock?: number; // Added stock
-  status?: 'active' | 'inactive' | 'draft'; // Added status
+  stock?: number; 
+  status?: 'active' | 'inactive' | 'draft'; 
+  tags?: string[]; // Added tags
+  images?: string[]; // Added images array for consistency, though product card might only use one
 }
 
 // This interface matches the MongoDB document structure for products
-interface ProductMongo extends Omit<ProductSummary, 'id' | 'dataAiHint'> {
+// It should fully encompass ProductSummary fields plus MongoDB specific ones
+export interface ProductMongo {
   _id: ObjectId;
-  // dataAiHint is not stored in DB, generated on client or not used for admin
-  images?: string[]; // Array of images for product detail page
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  image: string; // Main image
+  images?: string[]; // Array of all image URLs
+  category: string;
+  rating?: number;
   reviews?: {
     user: string;
     comment: string;
     rating: number;
     date: Date | string;
   }[];
+  isFeatured?: boolean;
+  stock?: number;
+  status?: 'active' | 'inactive' | 'draft';
   tags?: string[];
-  // isFeatured is already in ProductSummary
+  createdAt?: Date; // Optional: for sorting or display
+  updatedAt?: Date; // Optional: for tracking updates
+  // dataAiHint is not stored in DB
 }
 
 
@@ -51,24 +65,22 @@ export async function getProducts(
       query.category = categoryFilter;
     }
     
-    let cursor = productsCollection.find(query);
+    let cursor = productsCollection.find(query).sort({ createdAt: -1 }); // Sort by newest first if createdAt exists
 
     if (limit) {
       cursor = cursor.limit(limit);
     }
-    // Optionally, add sorting, e.g., .sort({ createdAt: -1 }) if you have a createdAt field
-
+    
     const fetchedProducts = await cursor.toArray();
 
     const displayProducts: ProductSummary[] = fetchedProducts.map(product => {
-      const { _id, description, ...restOfProduct } = product;
+      const { _id, ...restOfProduct } = product;
       return {
         ...restOfProduct,
         id: _id.toString(),
-        description: description, // Return full description
-        // Ensure all other fields expected by ProductSummary are present
-        // (name, price, image, category are already in restOfProduct if mapped from ProductSummary)
-        // stock and status are also in restOfProduct if present in ProductMongo
+        // Ensure all fields required by ProductSummary are present
+        // name, description, price, image, category, stock, status, tags, images, originalPrice, isFeatured, rating
+        // are expected to be in restOfProduct if they exist in ProductMongo
       };
     });
     

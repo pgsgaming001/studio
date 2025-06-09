@@ -7,10 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
+import Link from "next/link"; // Import Link
 import { ShoppingCart, DollarSign, Users, ListOrdered, PackageSearch, Edit, Trash2, PlusCircle, AlertTriangle, Loader2, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 import { getProducts, type ProductSummary } from "@/app/actions/getProducts";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation"; // Import useRouter
 
 // Placeholder summary data, can be made dynamic later
 const ecommerceSummary = {
@@ -24,6 +26,7 @@ export default function EcommerceDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const router = useRouter(); // Initialize useRouter
 
   const [summaryData, setSummaryData] = useState(ecommerceSummary);
 
@@ -57,13 +60,15 @@ export default function EcommerceDashboardPage() {
     fetchAdminProducts();
   }, [toast]);
 
-  const handleAddProduct = () => {
-    // TODO: Implement navigation or modal for adding a new product
-    toast({ title: "Add Product Clicked", description: "Implement form for adding products." });
-  };
+  // Removed handleAddProduct, will use Link or router.push now
+  // const handleAddProduct = () => {
+  //   router.push('/admin/ecommerce-dashboard/add-product');
+  // };
+
 
   const handleEditProduct = (productId: string) => {
     // TODO: Implement navigation or modal for editing product `productId`
+    // router.push(`/admin/ecommerce-dashboard/edit-product/${productId}`);
     toast({ title: "Edit Product Clicked", description: `Implement form for editing product ID: ${productId.substring(0,8)}...` });
   };
 
@@ -102,9 +107,11 @@ export default function EcommerceDashboardPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Manage your online store products, orders, and settings.</p>
         </div>
-        <Button onClick={handleAddProduct} className="mt-4 sm:mt-0 bg-accent hover:bg-accent/90 text-accent-foreground">
-          <PlusCircle className="mr-2 h-5 w-5" />
-          Add New Product
+        <Button asChild className="mt-4 sm:mt-0 bg-accent hover:bg-accent/90 text-accent-foreground">
+          <Link href="/admin/ecommerce-dashboard/add-product">
+            <PlusCircle className="mr-2 h-5 w-5" />
+            Add New Product
+          </Link>
         </Button>
       </header>
 
@@ -230,3 +237,4 @@ export default function EcommerceDashboardPage() {
     </div>
   );
 }
+
