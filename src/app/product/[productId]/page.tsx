@@ -1,14 +1,17 @@
 
-// src/app/product/[productId]/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
 import { getProductById, type ProductDisplayData } from "@/app/actions/getProductById";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Star, ShoppingBag, AlertTriangle, Info, ArrowLeft } from "lucide-react";
+import { Star, ShoppingBag, AlertTriangle, Info, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductPageProps {
   params: {
@@ -34,15 +37,55 @@ const StarRating = ({ rating, reviewCount }: { rating?: number; reviewCount?: nu
       {[...Array(emptyStars)].map((_, i) => (
         <Star key={`empty-${i}`} className="h-5 w-5 text-yellow-300" />
       ))}
-      {reviewCount && <span className="ml-2 text-sm text-muted-foreground">({reviewCount} reviews)</span>}
+      {reviewCount !== undefined && <span className="ml-2 text-sm text-muted-foreground">({reviewCount} reviews)</span>}
     </div>
   );
 };
 
 
-export default async function ProductPage({ params }: ProductPageProps) {
+export default function ProductPage({ params }: ProductPageProps) {
   const { productId } = params;
-  const { product, error } = await getProductById(productId);
+  const { toast } = useToast();
+  const [product, setProduct] = useState<ProductDisplayData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      setIsLoading(true);
+      setError(null);
+      const result = await getProductById(productId);
+      if (result.error) {
+        setError(result.error);
+        setProduct(null);
+      } else {
+        setProduct(result.product);
+      }
+      setIsLoading(false);
+    };
+
+    fetchProduct();
+  }, [productId]);
+
+  const handleAddToCart = () => {
+    if (product) {
+      toast({
+        title: "Product Added to Cart!",
+        description: `${product.name} has been added to your cart. (Placeholder)`,
+      });
+      // Here you would typically call an action to add the product to the cart state/DB
+      console.log("Add to cart clicked for:", product.name, product.id);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <main className="container mx-auto px-4 py-12 min-h-screen flex flex-col items-center justify-center text-center">
+        <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
+        <p className="text-xl text-muted-foreground">Loading Product Details...</p>
+      </main>
+    );
+  }
 
   if (error) {
     return (
@@ -74,7 +117,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
     );
   }
 
-  // Assuming a single main image for now, but product.images could be an array
   const mainImage = product.images && product.images.length > 0 ? product.images[0] : product.image;
 
   return (
@@ -98,8 +140,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-cover"
-                priority // Prioritize loading main product image
-                data-ai-hint={product.name} // Basic hint from product name
+                priority 
+                data-ai-hint={product.name} 
               />
             ) : (
               <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -107,7 +149,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
             )}
           </div>
-          {/* Placeholder for thumbnail images if product.images is an array */}
           {product.images && product.images.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
               {product.images.slice(0, 4).map((img, idx) => (
@@ -147,14 +188,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </p>
           </div>
           
-          {/* Add to Cart and other actions */}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <Button size="lg" className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground text-base shadow-md">
+            <Button 
+              size="lg" 
+              className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground text-base shadow-md"
+              onClick={handleAddToCart}
+            >
               <ShoppingBag className="mr-2 h-5 w-5" /> Add to Cart
             </Button>
-            {/* <Button size="lg" variant="outline" className="flex-1">
-              Add to Wishlist
-            </Button> */}
           </div>
            <p className="text-sm text-muted-foreground">
             {product.stock && product.stock > 0 ? `In Stock: ${product.stock} units` : "Currently unavailable"}
@@ -162,7 +203,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
       </div>
 
-      {/* Reviews Section */}
       {product.reviews && product.reviews.length > 0 && (
         <section className="mt-12 md:mt-16">
           <h2 className="font-headline text-2xl md:text-3xl font-semibold text-foreground mb-6">Customer Reviews</h2>
@@ -187,15 +227,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </section>
       )}
 
-      {/* Related Products Section (Placeholder) */}
       <section className="mt-12 md:mt-16">
         <h2 className="font-headline text-2xl md:text-3xl font-semibold text-foreground mb-6">You Might Also Like</h2>
-        {/* This would be another carousel or grid of ProductCard components, fetching related products */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {/* Placeholder for related product cards */}
           {[1,2,3,4].map(i => (
              <Card key={i} className="h-[300px] flex items-center justify-center bg-secondary rounded-xl">
-                <p className="text-muted-foreground">Related Product {i}</p>
+                <p className="text-muted-foreground">Related Product Placeholder {i}</p>
              </Card>
           ))}
         </div>
@@ -203,5 +240,3 @@ export default async function ProductPage({ params }: ProductPageProps) {
     </main>
   );
 }
-
-    

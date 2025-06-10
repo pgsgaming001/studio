@@ -1,16 +1,16 @@
 
 "use client";
 
-import { useEffect, useState } from "react"; // Added useEffect, useState
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { ArrowRight, ChevronRight, Search, ShoppingBag, Star, ThumbsUp, Zap, AlertTriangle, Loader2 } from "lucide-react"; // Added AlertTriangle, Loader2
+import { ArrowRight, ChevronRight, Search, ShoppingBag, Star, ThumbsUp, Zap, AlertTriangle, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { getProducts, type ProductSummary } from "@/app/actions/getProducts"; // Import the action
-import { useToast } from "@/hooks/use-toast"; // For error notifications
+import { getProducts, type ProductSummary } from "@/app/actions/getProducts";
+import { useToast } from "@/hooks/use-toast";
 
 
 const placeholderCategories = [
@@ -20,15 +20,23 @@ const placeholderCategories = [
   { name: "Office", icon: Search, dataAiHint: "office supplies", slug: "office" },
 ];
 
-// Define a more complete product type, which you should match in your MongoDB schema
-// This is now effectively ProductSummary from getProducts.ts
-// We keep it here for ProductCard's prop type clarity, though ProductSummary could be used directly.
 interface Product extends ProductSummary {}
 
 
 const ProductCard = ({ product }: { product: Product }) => {
+  const { toast } = useToast();
   const filledStars = product.rating ? Math.floor(product.rating) : 0;
   const hasHalfStar = product.rating ? product.rating % 1 !== 0 : false;
+
+  const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault(); // Prevent Link navigation if button is inside Link
+    e.stopPropagation(); // Stop event bubbling
+    toast({
+      title: "Product Added!",
+      description: `${product.name} has been added to your cart. (Placeholder)`,
+    });
+    console.log("Add to cart clicked for (from ProductCard):", product.name);
+  };
 
   return (
     <Link href={`/product/${product.id}`} passHref legacyBehavior>
@@ -36,7 +44,7 @@ const ProductCard = ({ product }: { product: Product }) => {
         <Card className="overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-300 rounded-xl flex flex-col h-full bg-card">
           <div className="relative w-full aspect-square bg-secondary overflow-hidden">
             <Image
-              src={product.image || "https://placehold.co/400x400.png"} // Fallback image
+              src={product.image || "https://placehold.co/400x400.png"}
               alt={product.name}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -44,7 +52,7 @@ const ProductCard = ({ product }: { product: Product }) => {
               className="group-hover:scale-105 transition-transform duration-300"
               data-ai-hint={product.dataAiHint || product.name.split(" ").slice(0,2).join(" ")}
             />
-            {product.originalPrice && (
+            {product.originalPrice && product.originalPrice > product.price && (
               <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs font-semibold px-2 py-1 rounded-full shadow-md">
                 SALE
               </div>
@@ -60,7 +68,7 @@ const ProductCard = ({ product }: { product: Product }) => {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            {product.rating && (
+            {product.rating && product.rating > 0 && (
             <div className="flex items-center mb-2">
               {[...Array(filledStars)].map((_, i) => (
                 <Star key={`filled-${i}`} className="h-4 w-4 text-yellow-400 fill-yellow-400" />
@@ -77,7 +85,7 @@ const ProductCard = ({ product }: { product: Product }) => {
                 <p className="text-xl font-bold text-primary">
                   ${product.price.toFixed(2)}
                 </p>
-                {product.originalPrice && (
+                {product.originalPrice && product.originalPrice > product.price && (
                   <p className="text-xs text-muted-foreground line-through">
                     ${product.originalPrice.toFixed(2)}
                   </p>
@@ -87,7 +95,7 @@ const ProductCard = ({ product }: { product: Product }) => {
                 size="sm" 
                 variant="default" 
                 className="shadow-md hover:shadow-lg transition-shadow z-10"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); console.log("Add to cart clicked for:", product.name); /* Add to cart logic here */ }}
+                onClick={handleAddToCart}
               >
                 <ShoppingBag className="mr-1.5 h-4 w-4" /> Add to Cart
               </Button>
@@ -112,21 +120,19 @@ export function EcommercePlaceholder() {
       setIsLoading(true);
       setError(null);
       try {
-        // Fetch featured products (e.g., limit to 8)
         const featuredResult = await getProducts({ limit: 8, featuredOnly: true });
-        if (featuredResult.error) throw new Error(featuredResult.error);
+        if (featuredResult.error) throw new Error(`Featured products error: ${featuredResult.error}`);
         setFeaturedProducts(featuredResult.products);
 
-        // Fetch all products (you might want pagination here in a real app)
-        const allResult = await getProducts({ limit: 12 }); // Example limit
-        if (allResult.error) throw new Error(allResult.error);
+        const allResult = await getProducts({ limit: 12 }); 
+        if (allResult.error) throw new Error(`All products error: ${allResult.error}`);
         setAllProducts(allResult.products);
 
       } catch (err: any) {
         console.error("Error fetching store products:", err);
         setError(err.message || "Failed to load products.");
         toast({
-          title: "Error",
+          title: "Error Loading Products",
           description: err.message || "Could not load products from the store.",
           variant: "destructive",
         });
@@ -260,10 +266,11 @@ export function EcommercePlaceholder() {
             </div>
         </section>
       ) : (
-        !isLoading && !error && ( // Only show if not loading and no error
-             <section className="px-4 text-center">
-                 <h2 className="font-headline text-3xl font-semibold text-foreground mb-4">No Products Yet</h2>
-                 <p className="text-muted-foreground">Check back soon, or if you're an admin, add some products!</p>
+        !isLoading && !error && ( 
+             <section className="px-4 text-center min-h-[200px] flex flex-col items-center justify-center">
+                 <ShoppingBag className="h-12 w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
+                 <h2 className="font-headline text-2xl font-semibold text-muted-foreground mb-2">Our Shelves Are Currently Empty</h2>
+                 <p className="text-muted-foreground max-w-md mx-auto">We're working hard to stock up. Please check back soon for exciting products! If you're an admin, you can add products through the dashboard.</p>
              </section>
         )
       )}
