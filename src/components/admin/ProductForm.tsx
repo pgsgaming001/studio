@@ -16,15 +16,11 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Loader2, UploadCloud, ImagePlus, Trash2, AlertCircle, CheckCircle } from "lucide-react";
 import Image from "next/image";
-import type { ProductFormPayload } from "@/app/actions/addProduct"; // Use the server action's payload type
+import type { ProductFormPayload } from "@/app/actions/addProduct"; 
 import { addProduct } from "@/app/actions/addProduct"; 
-// import { updateProduct, type ProductUpdatePayload } from "@/app/actions/updateProduct"; // For edit mode
-// import type { ProductDisplayData } from "@/app/actions/getProductById"; // For populating edit form
+import imageCompression from 'browser-image-compression';
 
 
-// Client-side Zod schema for form validation
-// This should largely mirror ProductFormPayload from addProduct.ts, but without server-side transforms if they rely on server context.
-// Price and stock are numbers, images will be FileList, tags string.
 const clientProductFormSchema = z.object({
   name: z.string().min(3, "Product name must be at least 3 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
@@ -47,10 +43,8 @@ type ClientProductFormData = z.infer<typeof clientProductFormSchema>;
 
 interface ProductFormProps {
   mode?: 'add' | 'edit';
-  // initialData?: ProductDisplayData; // For edit mode
 }
 
-// Helper to convert File to Data URI
 const fileToDataUri = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -61,27 +55,26 @@ const fileToDataUri = (file: File): Promise<string> => {
 };
 
 
-export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProps) {
+export function ProductForm({ mode = 'add' }: ProductFormProps) {
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  // const [existingImageUrls, setExistingImageUrls] = useState<string[]>(initialData?.images || []); // For edit mode
 
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<ClientProductFormData>({
     resolver: zodResolver(clientProductFormSchema),
     defaultValues: {
-      name: /*initialData?.name ||*/ "",
-      description: /*initialData?.description ||*/ "",
-      category: /*initialData?.category ||*/ "",
-      price: /*initialData?.price ||*/ 0,
-      originalPrice: /*initialData?.originalPrice ||*/ undefined,
-      stock: /*initialData?.stock ||*/ 0,
+      name: "",
+      description: "",
+      category: "",
+      price: 0,
+      originalPrice: undefined,
+      stock: 0,
       imageFiles: null,
-      tags: /*initialData?.tags?.join(', ') ||*/ "",
-      status: /*initialData?.status ||*/ 'draft',
-      isFeatured: /*initialData?.isFeatured ||*/ false,
+      tags: "",
+      status: 'draft',
+      isFeatured: false,
     },
   });
   
@@ -108,25 +101,41 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
 
   const onSubmit = async (data: ClientProductFormData) => {
     setIsSubmitting(true);
-    toast({ title: "Processing...", description: `${mode === 'add' ? 'Adding' : 'Updating'} product. Please wait.` });
+    toast({ title: "Processing...", description: `${mode === 'add' ? 'Compressing images and adding' : 'Compressing images and updating'} product. Please wait.` });
 
     let imageDataUris: string[] = [];
     if (data.imageFiles && data.imageFiles.length > 0) {
+        const compressionOptions = {
+            maxSizeMB: 0.5,
+            maxWidthOrHeight: 1024,
+            useWebWorker: true,
+        };
+        toast({ title: "Compressing Images...", description: `Starting image compression for ${data.imageFiles.length} file(s). This may take a moment.` });
         for (const file of Array.from(data.imageFiles)) {
             try {
-                const dataUri = await fileToDataUri(file);
+                console.log(`Original file: ${file.name}, size: ${(file.size / 1024 / 1024).toFixed(2)} MB, type: ${file.type}`);
+                
+                const compressedFile = await imageCompression(file, compressionOptions);
+                console.log(`Compressed file: ${compressedFile.name}, size: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB, type: ${compressedFile.type}`);
+                
+                const dataUri = await fileToDataUri(compressedFile);
                 imageDataUris.push(dataUri);
+                toast({ title: "Image Compressed", description: `${file.name} compressed successfully. New size: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB` });
+
             } catch (error) {
-                console.error("Error converting file to data URI:", error);
-                toast({ variant: "destructive", title: "Image Error", description: `Failed to process image: ${file.name}` });
+                console.error("Error compressing or converting file to data URI:", error);
+                let errorMessage = `Failed to process image: ${file.name}.`;
+                if (error instanceof Error) {
+                    errorMessage += ` ${error.message}`;
+                }
+                toast({ variant: "destructive", title: "Image Processing Error", description: errorMessage });
                 setIsSubmitting(false);
                 return;
             }
         }
+         toast({ title: "Image Compression Complete", description: "All images processed." });
     }
     
-    // Construct the payload for the server action
-    // Ensure `tags` is sent as a string, as the server schema expects a string for transformation
     const productPayload: ProductFormPayload & { imageDataUris?: string[] } = {
         name: data.name,
         description: data.description,
@@ -134,19 +143,20 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
         price: data.price,
         originalPrice: data.originalPrice,
         stock: data.stock,
-        tags: data.tags || "", // Send the raw string from the form, or empty string if undefined
+        tags: data.tags || "", 
         status: data.status,
         isFeatured: data.isFeatured,
-        images: [], // This will be populated by server action from imageDataUris if using original schema
+        images: [], 
         imageDataUris: imageDataUris, 
     };
 
 
     if (mode === 'add') {
+      console.log("Submitting product payload (add mode):", { ...productPayload, imageDataUris: productPayload.imageDataUris?.map(uri => uri.substring(0,50) + "...")});
       const result = await addProduct(productPayload);
       if (result.success && result.productId) {
         toast({ variant: "default", title: "Product Added!", description: `Product "${data.name}" has been successfully added. ID: ${result.productId.substring(0,8)}...` });
-        router.push("/admin/ecommerce-dashboard"); // Redirect to product list
+        router.push("/admin/ecommerce-dashboard"); 
       } else {
         let errorDescription = result.error || "An unknown error occurred.";
         if (result.issues) {
@@ -155,14 +165,6 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
         toast({ variant: "destructive", title: "Failed to Add Product", description: errorDescription });
       }
     } else {
-      // TODO: Implement update logic
-      // const updatePayload: ProductUpdatePayload = {
-      //   ...productPayload,
-      //   id: initialData!.id,
-      //   // Potentially handle existing images vs new images logic here or in server action
-      // };
-      // const result = await updateProduct(updatePayload);
-      // ... handle update result
       toast({ title: "Update Not Implemented", description: "Product update functionality is pending." });
     }
 
@@ -178,7 +180,6 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="name">Product Name</Label>
@@ -198,7 +199,6 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
             {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
           </div>
 
-          {/* Pricing and Stock */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <Label htmlFor="price">Price ($)</Label>
@@ -217,9 +217,8 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
             </div>
           </div>
 
-          {/* Images */}
           <div>
-            <Label htmlFor="imageFiles">Product Images (Max 5, up to 2MB each)</Label>
+            <Label htmlFor="imageFiles">Product Images (Max 5, compressed to ~0.5MB each)</Label>
             <Input 
               id="imageFiles" 
               type="file" 
@@ -230,7 +229,6 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
             />
             {errors.imageFiles && <p className="text-sm text-destructive mt-1">{errors.imageFiles.message}</p>}
             
-            {/* Image Previews */}
             {(imagePreviews.length > 0) && (
                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {imagePreviews.map((src, index) => (
@@ -240,11 +238,8 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
                     ))}
                 </div>
             )}
-             {/* TODO: Add display and removal of existing images for edit mode */}
           </div>
 
-
-          {/* Tags and Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="tags">Tags (comma-separated)</Label>
@@ -273,7 +268,6 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
             </div>
           </div>
           
-          {/* Featured */}
           <div className="flex items-center space-x-2">
             <Controller
               name="isFeatured"
@@ -290,7 +284,6 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
               Mark as Featured Product
             </Label>
           </div>
-
 
         </CardContent>
         <CardFooter className="border-t pt-6">
@@ -309,5 +302,3 @@ export function ProductForm({ mode = 'add' /*, initialData */ }: ProductFormProp
   );
 }
 
-
-    
