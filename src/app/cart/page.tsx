@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCart, type CartItem } from '@/context/CartContext';
@@ -25,7 +26,7 @@ export default function CartPage() {
     );
   }
   
-  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart } = cartContext;
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal, getItemCount, clearCart } = cartContext;
 
   const handleQuantityChange = (productId: string, newQuantityStr: string) => {
     const newQuantity = parseInt(newQuantityStr);
