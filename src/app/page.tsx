@@ -1,14 +1,34 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import XeroxForm from "@/components/features/xerox/XeroxForm";
 import { EcommercePlaceholder } from "@/components/features/ecommerce/EcommercePlaceholder";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Printer, ShoppingCart } from "lucide-react";
 
+const SESSION_STORAGE_KEY = 'homePageActiveTab';
+
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState("print");
+  // Initialize with default, then useEffect will update from sessionStorage
+  const [activeTab, setActiveTab] = useState<string>("print");
+
+  // On component mount, try to load the active tab from sessionStorage
+  useEffect(() => {
+    const storedTab = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (storedTab === "print" || storedTab === "ecommerce") {
+      setActiveTab(storedTab);
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // When activeTab changes, save it to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem(SESSION_STORAGE_KEY, activeTab);
+  }, [activeTab]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
 
   return (
     <main className="container mx-auto px-4 py-8 md:px-6 md:py-12">
@@ -23,7 +43,11 @@ export default function HomePage() {
         </p>
       </header>
 
-      <Tabs defaultValue="print" className="w-full" onValueChange={setActiveTab}>
+      <Tabs 
+        value={activeTab} // Control the Tabs component with our state
+        className="w-full" 
+        onValueChange={handleTabChange} // Update state on tab change
+      >
         <TabsList className="grid w-full grid-cols-2 md:w-1/2 lg:w-1/3 mx-auto mb-8 h-12 rounded-lg">
           <TabsTrigger value="print" className="text-base h-full flex items-center justify-center gap-2 data-[state=active]:shadow-md">
             <Printer size={20} /> Print Service
