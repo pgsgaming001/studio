@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -10,9 +10,9 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ArrowRight, ChevronRight, Search, ShoppingBag, Star, ThumbsUp, Zap, AlertTriangle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getProducts, type ProductSummary } from "@/app/actions/getProducts";
-import { useCart } from "@/context/CartContext"; // Import useCart
+import { useCart } from "@/context/CartContext";
 import type { ProductDisplayData } from "@/app/actions/getProductById";
-
+import { useRouter } from "next/navigation"; // Import useRouter
 
 const placeholderCategories = [
   { name: "Electronics", icon: Zap, dataAiHint: "gadgets technology", slug: "electronics" },
@@ -25,22 +25,17 @@ interface Product extends ProductSummary {}
 
 
 const ProductCard = ({ product }: { product: Product }) => {
-  const cartContext = useCart(); // Use cart context
+  const cartContext = useCart();
   const filledStars = product.rating ? Math.floor(product.rating) : 0;
   const hasHalfStar = product.rating ? product.rating % 1 !== 0 : false;
   
-  // Ensure cartContext is defined before calling addToCart
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); 
     e.stopPropagation(); 
     if (cartContext) {
-      // We need to ensure `product` (ProductSummary) is compatible with ProductDisplayData for addToCart
-      // For now, let's assume they are sufficiently compatible or cast.
-      // A more robust solution might involve fetching full ProductDisplayData or ensuring types align.
       cartContext.addToCart(product as unknown as ProductDisplayData);
     } else {
       console.error("Cart context not available");
-      // Fallback toast or error message if context is not ready
     }
   };
 
@@ -126,7 +121,9 @@ export function EcommercePlaceholder() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const cartContext = useCart(); 
+  const router = useRouter();
 
   useEffect(() => {
     const fetchStoreProducts = async () => {
@@ -137,26 +134,42 @@ export function EcommercePlaceholder() {
         if (featuredResult.error) throw new Error(`Featured products error: ${featuredResult.error}`);
         setFeaturedProducts(featuredResult.products);
 
-        const allResult = await getProducts({ limit: 12 }); 
+        const allResult = await getProducts({ limit: 20 }); // Fetch more for client-side search
         if (allResult.error) throw new Error(`All products error: ${allResult.error}`);
         setAllProducts(allResult.products);
 
       } catch (err: any) {
         console.error("Error fetching store products:", err);
         setError(err.message || "Failed to load products.");
-        if (cartContext) { // Only show toast if context is available
-             cartContext.addToCart({} as ProductDisplayData); // This seems incorrect, remove or use toast directly
-        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchStoreProducts();
-  }, [cartContext]); // Add cartContext to dependency array if it's used in useEffect for toasts
+  }, []);
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
+    }
+  };
+
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return allProducts;
+    }
+    const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
+    return allProducts.filter(product => 
+      product.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+      product.category.toLowerCase().includes(lowerCaseSearchTerm) ||
+      (product.tags && product.tags.some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm))) ||
+      product.description.toLowerCase().includes(lowerCaseSearchTerm)
+    );
+  }, [allProducts, searchTerm]);
 
   if (!cartContext || !cartContext.isCartReady) {
-    // Show a more general loading state if cart is not ready
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] py-12">
         <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
@@ -198,14 +211,17 @@ export function EcommercePlaceholder() {
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
           Discover amazing products, curated collections, and unbeatable deals. Happy shopping!
         </p>
-        <div className="relative max-w-xl mx-auto">
+        <form onSubmit={handleSearchSubmit} className="relative max-w-xl mx-auto">
           <Input
             type="search"
             placeholder="Search for products, brands, and more..."
             className="pl-12 pr-4 h-12 text-base rounded-full shadow-lg focus-visible:ring-primary focus-visible:ring-2 border-border/50"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        </div>
+          <button type="submit" className="sr-only">Search</button>
+        </form>
       </section>
 
       {featuredProducts.length > 0 && (
@@ -214,7 +230,7 @@ export function EcommercePlaceholder() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-headline text-3xl font-semibold text-foreground">Featured Picks</h2>
               <Button variant="link" className="text-primary hover:text-primary/80" asChild>
-                <Link href="/products"> {/* Assuming a future /products page for all items */}
+                <Link href="/products"> 
                   View All <ArrowRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>
@@ -237,7 +253,7 @@ export function EcommercePlaceholder() {
          <div className="flex justify-between items-center mb-6">
           <h2 className="font-headline text-3xl font-semibold text-foreground">Shop by Category</h2>
            <Button variant="link" className="text-primary hover:text-primary/80" asChild>
-              <Link href="/categories"> {/* Assuming a future /categories page */}
+              <Link href="/categories">
                 All Categories <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
@@ -274,35 +290,49 @@ export function EcommercePlaceholder() {
         </div>
       </section>
 
-      {allProducts.length > 0 ? (
+      {(allProducts.length > 0 || searchTerm) && ( // Show section even if filteredProducts is empty due to search
         <section className="container mx-auto px-4">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="font-headline text-3xl font-semibold text-foreground">Discover More</h2>
-                <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary">
+                <h2 className="font-headline text-3xl font-semibold text-foreground">
+                  {searchTerm ? `Results for "${searchTerm}"` : "Discover More"}
+                </h2>
+                {/* <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary">
                     Filter & Sort
-                </Button>
+                </Button> */}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {allProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-            ))}
-            </div>
-            <div className="text-center mt-10">
-                <Button size="lg" variant="outline" className="text-base px-8 py-6 border-2 border-primary text-primary hover:bg-primary/10 hover:text-primary shadow-sm hover:shadow-md transition-shadow">
-                    Load More Products
-                </Button>
-            </div>
+            {filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {filteredProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              searchTerm && (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-xl">No products found matching "{searchTerm}".</p>
+                  <p className="text-sm mt-2">Try a different search term or check your spelling.</p>
+                </div>
+              )
+            )}
+            {!searchTerm && allProducts.length > 12 && ( // Assuming initial fetch was more than 12
+                 <div className="text-center mt-10">
+                    <Button size="lg" variant="outline" className="text-base px-8 py-6 border-2 border-primary text-primary hover:bg-primary/10 hover:text-primary shadow-sm hover:shadow-md transition-shadow">
+                        Load More Products
+                    </Button>
+                </div>
+            )}
         </section>
-      ) : (
-        !isLoading && !error && ( 
+      )}
+
+      {allProducts.length === 0 && !isLoading && !error && !searchTerm && ( 
              <section className="container mx-auto px-4 text-center min-h-[200px] flex flex-col items-center justify-center">
                  <ShoppingBag className="h-12 w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
                  <h2 className="font-headline text-2xl font-semibold text-muted-foreground mb-2">Our Shelves Are Currently Empty</h2>
                  <p className="text-muted-foreground max-w-md mx-auto">We're working hard to stock up. Please check back soon for exciting products! If you're an admin, you can add products through the dashboard.</p>
              </section>
         )
-      )}
+      }
     </div>
   );
 }
-

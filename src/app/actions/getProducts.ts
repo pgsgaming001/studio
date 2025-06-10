@@ -18,20 +18,19 @@ export interface ProductSummary {
   dataAiHint?: string;
   stock?: number; 
   status?: 'active' | 'inactive' | 'draft'; 
-  tags?: string[]; // Added tags
-  images?: string[]; // Added images array for consistency, though product card might only use one
+  tags?: string[]; 
+  images?: string[]; 
 }
 
 // This interface matches the MongoDB document structure for products
-// It should fully encompass ProductSummary fields plus MongoDB specific ones
 export interface ProductMongo {
   _id: ObjectId;
   name: string;
   description: string;
   price: number;
   originalPrice?: number;
-  image: string; // Main image
-  images?: string[]; // Array of all image URLs
+  image: string; 
+  images?: string[]; 
   category: string;
   rating?: number;
   reviews?: {
@@ -44,14 +43,13 @@ export interface ProductMongo {
   stock?: number;
   status?: 'active' | 'inactive' | 'draft';
   tags?: string[];
-  createdAt?: Date; // Optional: for sorting or display
-  updatedAt?: Date; // Optional: for tracking updates
-  // dataAiHint is not stored in DB
+  createdAt?: Date; 
+  updatedAt?: Date; 
 }
 
 
 export async function getProducts(
-  { limit, featuredOnly, categoryFilter }: { limit?: number; featuredOnly?: boolean; categoryFilter?: string } = {}
+  { limit, featuredOnly, categoryFilter, searchQuery }: { limit?: number; featuredOnly?: boolean; categoryFilter?: string, searchQuery?: string } = {}
 ): Promise<{ products: ProductSummary[]; error?: string }> {
   try {
     const { db } = await connectToDatabase();
@@ -64,8 +62,17 @@ export async function getProducts(
     if (categoryFilter) {
       query.category = categoryFilter;
     }
+    if (searchQuery) {
+      const searchRegex = { $regex: searchQuery, $options: 'i' }; // 'i' for case-insensitive
+      query.$or = [
+        { name: searchRegex },
+        { category: searchRegex },
+        { description: searchRegex }, // Optional: search description
+        { tags: searchRegex } // Optional: search tags (if tags array contains strings)
+      ];
+    }
     
-    let cursor = productsCollection.find(query).sort({ createdAt: -1 }); // Sort by newest first if createdAt exists
+    let cursor = productsCollection.find(query).sort({ createdAt: -1 }); 
 
     if (limit) {
       cursor = cursor.limit(limit);
@@ -78,9 +85,6 @@ export async function getProducts(
       return {
         ...restOfProduct,
         id: _id.toString(),
-        // Ensure all fields required by ProductSummary are present
-        // name, description, price, image, category, stock, status, tags, images, originalPrice, isFeatured, rating
-        // are expected to be in restOfProduct if they exist in ProductMongo
       };
     });
     
