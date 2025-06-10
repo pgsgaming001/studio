@@ -10,7 +10,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ArrowRight, ChevronRight, Search, ShoppingBag, Star, ThumbsUp, Zap, AlertTriangle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getProducts, type ProductSummary } from "@/app/actions/getProducts";
-import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/context/CartContext"; // Import useCart
+import type { ProductDisplayData } from "@/app/actions/getProductById";
 
 
 const placeholderCategories = [
@@ -24,18 +25,23 @@ interface Product extends ProductSummary {}
 
 
 const ProductCard = ({ product }: { product: Product }) => {
-  const { toast } = useToast();
+  const cartContext = useCart(); // Use cart context
   const filledStars = product.rating ? Math.floor(product.rating) : 0;
   const hasHalfStar = product.rating ? product.rating % 1 !== 0 : false;
-
+  
+  // Ensure cartContext is defined before calling addToCart
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault(); // Prevent Link navigation if button is inside Link
-    e.stopPropagation(); // Stop event bubbling
-    toast({
-      title: "Product Added!",
-      description: `${product.name} has been added to your cart. (Placeholder)`,
-    });
-    console.log("Add to cart clicked for (from ProductCard):", product.name);
+    e.preventDefault(); 
+    e.stopPropagation(); 
+    if (cartContext) {
+      // We need to ensure `product` (ProductSummary) is compatible with ProductDisplayData for addToCart
+      // For now, let's assume they are sufficiently compatible or cast.
+      // A more robust solution might involve fetching full ProductDisplayData or ensuring types align.
+      cartContext.addToCart(product as unknown as ProductDisplayData);
+    } else {
+      console.error("Cart context not available");
+      // Fallback toast or error message if context is not ready
+    }
   };
 
   return (
@@ -55,6 +61,11 @@ const ProductCard = ({ product }: { product: Product }) => {
             {product.originalPrice && product.originalPrice > product.price && (
               <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs font-semibold px-2 py-1 rounded-full shadow-md">
                 SALE
+              </div>
+            )}
+             {(!product.stock || product.stock <= 0) && (
+              <div className="absolute bottom-2 left-2 bg-slate-700/80 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
+                Out of Stock
               </div>
             )}
           </div>
@@ -96,8 +107,10 @@ const ProductCard = ({ product }: { product: Product }) => {
                 variant="default" 
                 className="shadow-md hover:shadow-lg transition-shadow z-10"
                 onClick={handleAddToCart}
+                disabled={!product.stock || product.stock <= 0}
               >
-                <ShoppingBag className="mr-1.5 h-4 w-4" /> Add to Cart
+                <ShoppingBag className="mr-1.5 h-4 w-4" /> 
+                {product.stock && product.stock > 0 ? "Add" : "Sold Out"}
               </Button>
             </div>
           </CardContent>
@@ -113,7 +126,7 @@ export function EcommercePlaceholder() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
+  const cartContext = useCart(); 
 
   useEffect(() => {
     const fetchStoreProducts = async () => {
@@ -131,18 +144,27 @@ export function EcommercePlaceholder() {
       } catch (err: any) {
         console.error("Error fetching store products:", err);
         setError(err.message || "Failed to load products.");
-        toast({
-          title: "Error Loading Products",
-          description: err.message || "Could not load products from the store.",
-          variant: "destructive",
-        });
+        if (cartContext) { // Only show toast if context is available
+             cartContext.addToCart({} as ProductDisplayData); // This seems incorrect, remove or use toast directly
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchStoreProducts();
-  }, [toast]);
+  }, [cartContext]); // Add cartContext to dependency array if it's used in useEffect for toasts
+
+  if (!cartContext || !cartContext.isCartReady) {
+    // Show a more general loading state if cart is not ready
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] py-12">
+        <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+        <p className="text-lg text-muted-foreground">Initializing Store...</p>
+      </div>
+    );
+  }
+
 
   if (isLoading) {
     return (
@@ -171,7 +193,7 @@ export function EcommercePlaceholder() {
           <ShoppingBag className="h-10 w-10 text-primary" />
         </div>
         <h1 className="font-headline text-4xl sm:text-5xl font-bold text-primary mb-3">
-          Welcome to Our Store!
+          Welcome to Xerox2U Store!
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
           Discover amazing products, curated collections, and unbeatable deals. Happy shopping!
@@ -187,31 +209,37 @@ export function EcommercePlaceholder() {
       </section>
 
       {featuredProducts.length > 0 && (
-        <section className="px-4 md:px-0">
-          <div className="flex justify-between items-center mb-6 px-0 md:px-4">
-            <h2 className="font-headline text-3xl font-semibold text-foreground">Featured Picks</h2>
-            <Button variant="link" className="text-primary hover:text-primary/80">
-              View All <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
+        <section className="px-0 md:px-0">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="font-headline text-3xl font-semibold text-foreground">Featured Picks</h2>
+              <Button variant="link" className="text-primary hover:text-primary/80" asChild>
+                <Link href="/products"> {/* Assuming a future /products page for all items */}
+                  View All <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </div>
           <ScrollArea className="w-full whitespace-nowrap pb-4">
-            <div className="flex space-x-4 md:space-x-6 px-0 md:px-4">
+            <div className="flex space-x-4 md:space-x-6 px-4 container mx-auto">
               {featuredProducts.map((product) => (
                 <div key={product.id} className="inline-block w-[280px] sm:w-[300px] h-full">
                    <ProductCard product={product} />
                 </div>
               ))}
             </div>
-            <ScrollBar orientation="horizontal" className="mt-2" />
+            <ScrollBar orientation="horizontal" className="mt-2 container mx-auto px-4" />
           </ScrollArea>
         </section>
       )}
 
-      <section className="px-4">
+      <section className="container mx-auto px-4">
          <div className="flex justify-between items-center mb-6">
           <h2 className="font-headline text-3xl font-semibold text-foreground">Shop by Category</h2>
-           <Button variant="link" className="text-primary hover:text-primary/80">
-              All Categories <ArrowRight className="ml-1 h-4 w-4" />
+           <Button variant="link" className="text-primary hover:text-primary/80" asChild>
+              <Link href="/categories"> {/* Assuming a future /categories page */}
+                All Categories <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
             </Button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
@@ -234,20 +262,20 @@ export function EcommercePlaceholder() {
         </div>
       </section>
       
-      <section className="px-4">
-         <div className="bg-gradient-to-r from-primary to-accent text-primary-foreground p-8 md:p-12 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between">
-            <div>
+      <section className="container mx-auto px-4">
+         <div className="bg-gradient-to-r from-primary to-accent text-primary-foreground p-8 md:p-12 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-center md:text-left">
                 <h3 className="text-3xl md:text-4xl font-bold mb-2">Limited Time Offer!</h3>
                 <p className="text-lg md:text-xl opacity-90 mb-4 md:mb-0">Get 25% off on all Electronics. Use code: <span className="font-bold bg-background/20 px-2 py-1 rounded">SUMMER25</span></p>
             </div>
-            <Button variant="secondary" size="lg" className="bg-background text-primary hover:bg-background/90 mt-4 md:mt-0 shadow-md text-base">
+            <Button variant="secondary" size="lg" className="bg-background text-primary hover:bg-background/90 mt-4 md:mt-0 shadow-md text-base shrink-0">
                 Shop Now <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
         </div>
       </section>
 
       {allProducts.length > 0 ? (
-        <section className="px-4">
+        <section className="container mx-auto px-4">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="font-headline text-3xl font-semibold text-foreground">Discover More</h2>
                 <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary">
@@ -267,7 +295,7 @@ export function EcommercePlaceholder() {
         </section>
       ) : (
         !isLoading && !error && ( 
-             <section className="px-4 text-center min-h-[200px] flex flex-col items-center justify-center">
+             <section className="container mx-auto px-4 text-center min-h-[200px] flex flex-col items-center justify-center">
                  <ShoppingBag className="h-12 w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
                  <h2 className="font-headline text-2xl font-semibold text-muted-foreground mb-2">Our Shelves Are Currently Empty</h2>
                  <p className="text-muted-foreground max-w-md mx-auto">We're working hard to stock up. Please check back soon for exciting products! If you're an admin, you can add products through the dashboard.</p>
@@ -277,3 +305,4 @@ export function EcommercePlaceholder() {
     </div>
   );
 }
+

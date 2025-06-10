@@ -11,7 +11,7 @@ import { Star, ShoppingBag, AlertTriangle, Info, ArrowLeft, Loader2 } from "luci
 import Image from "next/image";
 import Link from "next/link";
 import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/context/CartContext"; // Import useCart
 
 interface ProductPageProps {
   params: {
@@ -19,7 +19,6 @@ interface ProductPageProps {
   };
 }
 
-// Helper to render star ratings
 const StarRating = ({ rating, reviewCount }: { rating?: number; reviewCount?: number }) => {
   if (typeof rating !== 'number' || rating <= 0) {
     return <span className="text-sm text-muted-foreground">No reviews yet</span>;
@@ -45,10 +44,12 @@ const StarRating = ({ rating, reviewCount }: { rating?: number; reviewCount?: nu
 
 export default function ProductPage({ params }: ProductPageProps) {
   const { productId } = params;
-  const { toast } = useToast();
+  const cartContext = useCart(); // Use cart context
   const [product, setProduct] = useState<ProductDisplayData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -60,21 +61,32 @@ export default function ProductPage({ params }: ProductPageProps) {
         setProduct(null);
       } else {
         setProduct(result.product);
+        if (result.product?.images && result.product.images.length > 0) {
+          setSelectedImage(result.product.images[0]);
+        } else if (result.product?.image) {
+          setSelectedImage(result.product.image);
+        }
       }
       setIsLoading(false);
     };
 
     fetchProduct();
   }, [productId]);
+  
+  if (!cartContext || !cartContext.isCartReady) {
+     return (
+      <main className="container mx-auto px-4 py-12 min-h-screen flex flex-col items-center justify-center text-center">
+        <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
+        <p className="text-xl text-muted-foreground">Loading Cart & Product Details...</p>
+      </main>
+    );
+  }
+  const { addToCart } = cartContext;
+
 
   const handleAddToCart = () => {
     if (product) {
-      toast({
-        title: "Product Added to Cart!",
-        description: `${product.name} has been added to your cart. (Placeholder)`,
-      });
-      // Here you would typically call an action to add the product to the cart state/DB
-      console.log("Add to cart clicked for:", product.name, product.id);
+      addToCart(product); // Use context's addToCart
     }
   };
 
@@ -117,7 +129,7 @@ export default function ProductPage({ params }: ProductPageProps) {
     );
   }
 
-  const mainImage = product.images && product.images.length > 0 ? product.images[0] : product.image;
+  const displayImage = selectedImage || (product.images && product.images.length > 0 ? product.images[0] : product.image);
 
   return (
     <main className="container mx-auto px-4 py-8 md:py-12">
@@ -130,12 +142,11 @@ export default function ProductPage({ params }: ProductPageProps) {
         </Button>
       </div>
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
-        {/* Image Gallery Section */}
         <div className="space-y-4">
           <div className="relative aspect-square w-full overflow-hidden rounded-xl shadow-lg border bg-secondary">
-            {mainImage ? (
+            {displayImage ? (
               <Image
-                src={mainImage}
+                src={displayImage}
                 alt={product.name}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -151,8 +162,12 @@ export default function ProductPage({ params }: ProductPageProps) {
           </div>
           {product.images && product.images.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
-              {product.images.slice(0, 4).map((img, idx) => (
-                <div key={idx} className="relative aspect-square rounded-md overflow-hidden border hover:border-primary cursor-pointer">
+              {product.images.map((img, idx) => (
+                <div 
+                  key={idx} 
+                  className={`relative aspect-square rounded-md overflow-hidden border hover:border-primary cursor-pointer ${selectedImage === img ? 'border-primary ring-2 ring-primary' : 'border-border'}`}
+                  onClick={() => setSelectedImage(img)}
+                >
                   <Image src={img} alt={`${product.name} thumbnail ${idx + 1}`} fill className="object-cover" sizes="10vw"/>
                 </div>
               ))}
@@ -160,7 +175,6 @@ export default function ProductPage({ params }: ProductPageProps) {
           )}
         </div>
 
-        {/* Product Details Section */}
         <div className="space-y-6">
           <div className="space-y-2">
             <Badge variant="secondary" className="text-sm">{product.category}</Badge>
@@ -172,7 +186,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 
           <p className="text-3xl font-semibold text-foreground">
             ${product.price.toFixed(2)}
-            {product.originalPrice && (
+            {product.originalPrice && product.originalPrice > product.price && (
               <span className="ml-2 text-xl text-muted-foreground line-through">
                 ${product.originalPrice.toFixed(2)}
               </span>
@@ -193,12 +207,19 @@ export default function ProductPage({ params }: ProductPageProps) {
               size="lg" 
               className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground text-base shadow-md"
               onClick={handleAddToCart}
+              disabled={!product.stock || product.stock <= 0}
             >
-              <ShoppingBag className="mr-2 h-5 w-5" /> Add to Cart
+              <ShoppingBag className="mr-2 h-5 w-5" /> 
+              {product.stock && product.stock > 0 ? "Add to Cart" : "Out of Stock"}
             </Button>
           </div>
            <p className="text-sm text-muted-foreground">
-            {product.stock && product.stock > 0 ? `In Stock: ${product.stock} units` : "Currently unavailable"}
+            {product.stock && product.stock > 0 
+              ? `In Stock: ${product.stock} units available` 
+              : product.stock === 0 
+                ? <span className="text-destructive font-medium">Currently Out of Stock</span>
+                : "Stock information unavailable"
+            }
           </p>
         </div>
       </div>
@@ -227,11 +248,12 @@ export default function ProductPage({ params }: ProductPageProps) {
         </section>
       )}
 
+      {/* Placeholder for related products */}
       <section className="mt-12 md:mt-16">
         <h2 className="font-headline text-2xl md:text-3xl font-semibold text-foreground mb-6">You Might Also Like</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {[1,2,3,4].map(i => (
-             <Card key={i} className="h-[300px] flex items-center justify-center bg-secondary rounded-xl">
+             <Card key={i} className="h-[300px] flex items-center justify-center bg-secondary/30 rounded-xl">
                 <p className="text-muted-foreground">Related Product Placeholder {i}</p>
              </Card>
           ))}
