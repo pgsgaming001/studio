@@ -24,12 +24,15 @@ export function Header() {
           {/* Example: <Link href="/products" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Products</Link> */}
         </nav>
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" asChild className="relative">
             <Link href="/cart" aria-label="Shopping Cart">
               <ShoppingCartIcon className="h-6 w-6" />
               {itemCount > 0 && (
-                <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full p-0 text-xs">
-                  {itemCount}
+                <Badge
+                  variant="destructive"
+                  className="absolute top-[-6px] right-[-6px] h-[20px] min-w-[20px] flex items-center justify-center rounded-full px-1 text-xs leading-none"
+                >
+                  {itemCount > 9 ? "9+" : itemCount}
                 </Badge>
               )}
             </Link>
