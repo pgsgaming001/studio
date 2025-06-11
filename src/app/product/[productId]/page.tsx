@@ -2,8 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from 'next/navigation'; // Import useParams
+import { useParams } from 'next/navigation'; 
 import { getProductById, type ProductDisplayData } from "@/app/actions/getProductById";
+import { getProducts, type ProductSummary } from "@/app/actions/getProducts"; // Import getProducts
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,13 +14,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useCart } from "@/context/CartContext"; 
-
-// ProductPageProps interface is no longer strictly needed for params if using the hook
-// interface ProductPageProps {
-//   params: {
-//     productId: string;
-//   };
-// }
+import { ProductCard } from "@/components/features/ecommerce/ProductCard"; // Import ProductCard
 
 const StarRating = ({ rating, reviewCount }: { rating?: number; reviewCount?: number }) => {
   if (typeof rating !== 'number' || rating <= 0) {
@@ -44,43 +39,71 @@ const StarRating = ({ rating, reviewCount }: { rating?: number; reviewCount?: nu
 };
 
 
-export default function ProductPage() { // Removed params from props
-  const params = useParams(); // Use the hook
-  const productId = params.productId as string; // Extract productId from hook's return value
+export default function ProductPage() { 
+  const params = useParams(); 
+  const productId = params.productId as string; 
 
   const cartContext = useCart(); 
   const [product, setProduct] = useState<ProductDisplayData | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<ProductSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingRelated, setIsLoadingRelated] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      if (!productId) { // Ensure productId is available
+    const fetchProductAndRelated = async () => {
+      if (!productId) { 
         setIsLoading(false);
         setError("Product ID is missing.");
         return;
       }
       setIsLoading(true);
+      setIsLoadingRelated(true);
       setError(null);
+      setProduct(null);
+      setRelatedProducts([]);
+
       const result = await getProductById(productId);
       if (result.error) {
         setError(result.error);
         setProduct(null);
-      } else {
+      } else if (result.product) {
         setProduct(result.product);
-        if (result.product?.images && result.product.images.length > 0) {
+        if (result.product.images && result.product.images.length > 0) {
           setSelectedImage(result.product.images[0]);
-        } else if (result.product?.image) {
+        } else if (result.product.image) {
           setSelectedImage(result.product.image);
         }
+
+        // Fetch related products
+        if (result.product.category) {
+          getProducts({ categoryFilter: result.product.category, limit: 5 }) // Limit to 5, one might be current product
+            .then(relatedResult => {
+              if (relatedResult.products) {
+                // Filter out the current product and take top 4
+                setRelatedProducts(relatedResult.products.filter(p => p.id !== productId).slice(0, 4));
+              }
+              setIsLoadingRelated(false);
+            })
+            .catch(err => {
+              console.error("Error fetching related products:", err);
+              setIsLoadingRelated(false);
+            });
+        } else {
+          setIsLoadingRelated(false);
+        }
+      } else {
+        // Product not found, but no specific error from getProductById (e.g. ID was valid but not in DB)
+        setProduct(null); // Already null, but explicit
+        setError("Product not found."); // Set a generic error if needed
       }
       setIsLoading(false);
     };
 
-    fetchProduct();
-  }, [productId]); // productId from useParams is stable but good practice to include
+    fetchProductAndRelated();
+  }, [productId]); 
   
   if (!cartContext || !cartContext.isCartReady) {
      return (
@@ -257,18 +280,26 @@ export default function ProductPage() { // Removed params from props
         </section>
       )}
 
-      {/* Placeholder for related products */}
       <section className="mt-12 md:mt-16">
         <h2 className="font-headline text-2xl md:text-3xl font-semibold text-foreground mb-6">You Might Also Like</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {[1,2,3,4].map(i => (
-             <Card key={i} className="h-[300px] flex items-center justify-center bg-secondary/30 rounded-xl">
-                <p className="text-muted-foreground">Related Product Placeholder {i}</p>
-             </Card>
-          ))}
-        </div>
+        {isLoadingRelated ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[1,2,3,4].map(i => (
+              <Card key={`placeholder-${i}`} className="h-[300px] flex items-center justify-center bg-secondary/30 rounded-xl">
+                  <Loader2 className="h-8 w-8 text-muted-foreground animate-spin"/>
+              </Card>
+            ))}
+          </div>
+        ) : relatedProducts.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {relatedProducts.map(relatedProd => (
+              <ProductCard key={relatedProd.id} product={relatedProd} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-center">No related products found in this category.</p>
+        )}
       </section>
     </main>
   );
 }
-
