@@ -12,15 +12,9 @@ import Link from "next/link";
 import { getProducts, type ProductSummary } from "@/app/actions/getProducts";
 import { useCart } from "@/context/CartContext";
 import type { ProductDisplayData } from "@/app/actions/getProductById";
-import { useRouter } from "next/navigation"; // Import useRouter
-import { ProductCard } from "./ProductCard"; // Ensure ProductCard is imported
-
-const placeholderCategories = [
-  { name: "Electronics", icon: Zap, dataAiHint: "gadgets technology", slug: "electronics" },
-  { name: "Home Goods", icon: ThumbsUp, dataAiHint: "home decor", slug: "home-goods" },
-  { name: "Fashion", icon: ShoppingBag, dataAiHint: "apparel clothing", slug: "fashion" },
-  { name: "Office", icon: Search, dataAiHint: "office supplies", slug: "office" },
-];
+import { useRouter } from "next/navigation";
+import { ProductCard } from "./ProductCard";
+import { placeholderCategories } from "@/config/categories"; // Import from centralized location
 
 interface Product extends ProductSummary {}
 
@@ -139,7 +133,7 @@ export function EcommercePlaceholder() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-headline text-3xl font-semibold text-foreground">Featured Picks</h2>
               <Button variant="link" className="text-primary hover:text-primary/80" asChild>
-                <Link href="/products"> 
+                <Link href="/"> {/* Changed to / (main shop page) */}
                   View All <ArrowRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>
@@ -162,7 +156,7 @@ export function EcommercePlaceholder() {
          <div className="flex justify-between items-center mb-6">
           <h2 className="font-headline text-3xl font-semibold text-foreground">Shop by Category</h2>
            <Button variant="link" className="text-primary hover:text-primary/80" asChild>
-              <Link href="/categories">
+              <Link href="/categories"> {/* Changed to /categories */}
                 All Categories <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>

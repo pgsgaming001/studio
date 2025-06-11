@@ -5,18 +5,10 @@ import { useEffect, useState, Suspense } from "react";
 import { useParams } from "next/navigation";
 import { getProducts, type ProductSummary } from "@/app/actions/getProducts";
 import { ProductCard } from "@/components/features/ecommerce/ProductCard";
-import { Loader2, AlertTriangle, ShoppingBag, Zap, ThumbsUp, Search as SearchIconLucide } from "lucide-react"; // Renamed Search to SearchIconLucide
+import { Loader2, AlertTriangle, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-
-// These categories should ideally come from a shared source or config
-// Duplicating from EcommercePlaceholder for now for simplicity
-const placeholderCategories = [
-  { name: "Electronics", icon: Zap, dataAiHint: "gadgets technology", slug: "electronics" },
-  { name: "Home Goods", icon: ThumbsUp, dataAiHint: "home decor", slug: "home-goods" },
-  { name: "Fashion", icon: ShoppingBag, dataAiHint: "apparel clothing", slug: "fashion" },
-  { name: "Office", icon: SearchIconLucide, dataAiHint: "office supplies", slug: "office" }, // Using renamed SearchIconLucide
-];
+import { placeholderCategories } from "@/config/categories"; // Import from centralized location
 
 function CategoryResults() {
   const params = useParams();
@@ -153,4 +145,3 @@ export default function CategoryPage() {
     </Suspense>
   );
 }
-
