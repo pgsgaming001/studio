@@ -263,7 +263,7 @@ export default function XeroxForm() {
               {/* Column 1: Upload and Settings */}
               <div className="space-y-6">
                 <FileUpload onFileChange={handleFileChange} fileName={fileName} />
-                {file && ( // Show settings if a file is selected
+                {file && ( 
                   <PrintSettings
                     numPages={numPagesStr} setNumPages={setNumPagesStr}
                     pageCountStatus={pageCountStatus}
@@ -277,7 +277,7 @@ export default function XeroxForm() {
               </div>
               {/* Column 2: Preview */}
               <div>
-                {file && ( // Show preview card if a file is selected
+                {file && ( 
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-xl font-semibold text-accent">
@@ -347,15 +347,7 @@ export default function XeroxForm() {
                 <h3 className="text-xl font-semibold mb-3 text-accent">Order Summary</h3>
                 <OrderSummary printCost={printCost} deliveryFee={actualDeliveryFee} />
               </div>
-              <div className="mt-4">
-                <h3 className="text-xl font-semibold mb-3 text-accent">Print Preview (Schematic)</h3>
-                 <PrintPreview
-                    fileName={fileName}
-                    numPages={numPagesStr}
-                    printSides={printSides}
-                    layout={layout}
-                />
-              </div>
+             
               {deliveryMethod === 'pickup' && selectedPickupCenter && (
                 <p className="text-sm">Pickup from: <span className="font-medium">{selectedPickupCenter}</span>.</p>
               )}
@@ -409,3 +401,4 @@ export default function XeroxForm() {
     </div>
   );
 }
+
