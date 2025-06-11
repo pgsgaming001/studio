@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from 'next/navigation'; 
+import { useParams } from 'next/navigation';
 import { getProductById, type ProductDisplayData } from "@/app/actions/getProductById";
 import { getProducts, type ProductSummary } from "@/app/actions/getProducts"; // Import getProducts
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import { Star, ShoppingBag, AlertTriangle, Info, ArrowLeft, Loader2 } from "luci
 import Image from "next/image";
 import Link from "next/link";
 import { format } from "date-fns";
-import { useCart } from "@/context/CartContext"; 
+import { useCart } from "@/context/CartContext";
 import { ProductCard } from "@/components/features/ecommerce/ProductCard"; // Import ProductCard
 
 const StarRating = ({ rating, reviewCount }: { rating?: number; reviewCount?: number }) => {
@@ -39,11 +39,11 @@ const StarRating = ({ rating, reviewCount }: { rating?: number; reviewCount?: nu
 };
 
 
-export default function ProductPage() { 
-  const params = useParams(); 
-  const productId = params.productId as string; 
+export default function ProductPage() {
+  const params = useParams();
+  const productId = params.productId as string;
 
-  const cartContext = useCart(); 
+  const cartContext = useCart();
   const [product, setProduct] = useState<ProductDisplayData | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<ProductSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +54,7 @@ export default function ProductPage() {
 
   useEffect(() => {
     const fetchProductAndRelated = async () => {
-      if (!productId) { 
+      if (!productId) {
         setIsLoading(false);
         setError("Product ID is missing.");
         return;
@@ -103,8 +103,8 @@ export default function ProductPage() {
     };
 
     fetchProductAndRelated();
-  }, [productId]); 
-  
+  }, [productId]);
+
   if (!cartContext || !cartContext.isCartReady) {
      return (
       <main className="container mx-auto px-4 py-12 min-h-screen flex flex-col items-center justify-center text-center">
@@ -118,7 +118,7 @@ export default function ProductPage() {
 
   const handleAddToCart = () => {
     if (product) {
-      addToCart(product); 
+      addToCart(product);
     }
   };
 
@@ -183,8 +183,8 @@ export default function ProductPage() {
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-cover"
-                priority 
-                data-ai-hint={product.name} 
+                priority
+                data-ai-hint={product.name}
               />
             ) : (
               <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -195,8 +195,8 @@ export default function ProductPage() {
           {product.images && product.images.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
               {product.images.map((img, idx) => (
-                <div 
-                  key={idx} 
+                <div
+                  key={idx}
                   className={`relative aspect-square rounded-md overflow-hidden border hover:border-primary cursor-pointer ${selectedImage === img ? 'border-primary ring-2 ring-primary' : 'border-border'}`}
                   onClick={() => setSelectedImage(img)}
                 >
@@ -224,7 +224,7 @@ export default function ProductPage() {
               </span>
             )}
           </p>
-          
+
           <Separator />
 
           <div>
@@ -233,22 +233,22 @@ export default function ProductPage() {
               {product.description || "No description available."}
             </p>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground text-base shadow-md"
               onClick={handleAddToCart}
               disabled={!product.stock || product.stock <= 0}
             >
-              <ShoppingBag className="mr-2 h-5 w-5" /> 
+              <ShoppingBag className="mr-2 h-5 w-5" />
               {product.stock && product.stock > 0 ? "Add to Cart" : "Out of Stock"}
             </Button>
           </div>
            <p className="text-sm text-muted-foreground">
-            {product.stock && product.stock > 0 
-              ? `In Stock: ${product.stock} units available` 
-              : product.stock === 0 
+            {product.stock && product.stock > 0
+              ? `In Stock: ${product.stock} units available`
+              : product.stock === 0
                 ? <span className="text-destructive font-medium">Currently Out of Stock</span>
                 : "Stock information unavailable"
             }
