@@ -1,0 +1,38 @@
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Rules for product images uploaded by admins/editors
+    match /product_images/{productId}/{allPaths=**} {
+      // Product images should generally be publicly readable
+      allow read: if true;
+
+      // Allow write only if a user is authenticated.
+      // IMPORTANT: For a production app, you would typically restrict this further
+      // to users with specific admin roles, not just any authenticated user.
+      // This change addresses the "DANGER" sign on 'allow write: if true;'.
+      allow write: if request.auth != null;
+    }
+
+    // Rules for PDF documents uploaded by users for the print service
+    match /user_documents/{orderId}/{allPaths=**} {
+      // Allow read if true for now, as download URLs might be generated and accessed.
+      // For stricter security, you could restrict this to the user who uploaded
+      // or to authenticated admins retrieving orders.
+      allow read: if true; // Or 'if request.auth != null;' for more restriction
+
+      // Allow write only if a user is authenticated. This allows users
+      // to upload their documents for printing when placing an order.
+      allow write: if request.auth != null;
+    }
+
+    // Add other specific paths and their rules here as needed.
+    // For example, if you have user profile pictures:
+    // match /user_profiles/{userId}/{allPaths=**} {
+    //   allow read: if true;
+    //   allow write: if request.auth != null && request.auth.uid == userId;
+    // }
+  }
+}
