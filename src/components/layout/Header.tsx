@@ -2,11 +2,11 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCartIcon, Package, LogIn, LogOut, UserCircle, Loader2 } from 'lucide-react';
+import { ShoppingCartIcon, Package, LogIn, LogOut, UserCircle, Loader2, Settings, ShieldCheck } from 'lucide-react'; // Added Settings, ShieldCheck
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/context/CartContext';
-import { useAuth } from '@/context/AuthContext'; // Import useAuth
+import { useAuth } from '@/context/AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,13 +14,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
 export function Header() {
   const cartContext = useCart();
-  const authContext = useAuth(); // Use the auth context
+  const authContext = useAuth(); 
 
   const itemCount = cartContext && cartContext.isCartReady ? cartContext.getItemCount() : 0;
 
@@ -34,6 +35,8 @@ export function Header() {
     return 'U';
   };
   
+  const isAdminUser = authContext.user && authContext.user.email === 'pgsviews@gmail.com'; // Example admin check
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
@@ -48,7 +51,7 @@ export function Header() {
           <Button variant="ghost" size="icon" asChild className="relative">
             <Link href="/cart" aria-label="Shopping Cart">
               <ShoppingCartIcon className="h-5 w-5 md:h-6 md:w-6" />
-              {itemCount > 0 && (
+              {itemCount > 0 && cartContext.isCartReady && (
                 <Badge
                   variant="destructive"
                   className="absolute top-[-6px] right-[-6px] h-[18px] md:h-[20px] min-w-[18px] md:min-w-[20px] flex items-center justify-center rounded-full px-1 text-xs leading-none"
@@ -83,11 +86,27 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {/* Add other items like "My Orders", "Profile" here if needed */}
-                {/* <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem> */}
-                {/* <DropdownMenuItem asChild><Link href="/my-orders">My Orders</Link></DropdownMenuItem> */}
-                {/* <DropdownMenuSeparator /> */}
-                <DropdownMenuItem onClick={authContext.signOutUser} className="cursor-pointer">
+                <DropdownMenuGroup>
+                  {/* <DropdownMenuItem asChild><Link href="/profile" className="cursor-pointer w-full"><UserCircle className="mr-2 h-4 w-4" /> Profile</Link></DropdownMenuItem> */}
+                  {/* <DropdownMenuItem asChild><Link href="/my-orders" className="cursor-pointer w-full"><Package className="mr-2 h-4 w-4" /> My Orders</Link></DropdownMenuItem> */}
+                  {/* <DropdownMenuItem asChild><Link href="/settings" className="cursor-pointer w-full"><Settings className="mr-2 h-4 w-4" /> Settings</Link></DropdownMenuItem> */}
+                   {isAdminUser && (
+                    <DropdownMenuItem asChild>
+                        <Link href="/admin/dashboard" className="cursor-pointer w-full">
+                            <ShieldCheck className="mr-2 h-4 w-4 text-blue-500" /> Admin Dashboard
+                        </Link>
+                    </DropdownMenuItem>
+                  )}
+                   {isAdminUser && (
+                    <DropdownMenuItem asChild>
+                        <Link href="/admin/ecommerce-dashboard" className="cursor-pointer w-full">
+                            <ShoppingCartIcon className="mr-2 h-4 w-4 text-green-500" /> E-comm Dashboard
+                        </Link>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={authContext.signOutUser} className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign out
                 </DropdownMenuItem>
