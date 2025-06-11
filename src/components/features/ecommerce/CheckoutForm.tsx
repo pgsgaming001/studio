@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Phone, Home, Mail, Landmark, ShoppingCart, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect } from "react"; // Import useEffect
 
 const checkoutFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -31,15 +31,17 @@ export type CheckoutFormData = z.infer<typeof checkoutFormSchema>;
 interface CheckoutFormProps {
   onSubmit: (data: CheckoutFormData) => Promise<void>;
   isSubmitting: boolean;
+  initialEmail?: string; // Optional initial email
+  initialName?: string; // Optional initial name
 }
 
-export function CheckoutForm({ onSubmit, isSubmitting }: CheckoutFormProps) {
+export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName }: CheckoutFormProps) {
   const form = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
-      name: "",
+      name: initialName || "",
       phone: "",
-      email: "",
+      email: initialEmail || "",
       street: "",
       city: "",
       postalCode: "",
@@ -47,6 +49,17 @@ export function CheckoutForm({ onSubmit, isSubmitting }: CheckoutFormProps) {
       paymentMethod: "cod",
     },
   });
+
+  // Effect to update form values if initialEmail/initialName changes (e.g., after login)
+  useEffect(() => {
+    if (initialEmail) {
+      form.setValue("email", initialEmail, { shouldValidate: true });
+    }
+    if (initialName) {
+      form.setValue("name", initialName, { shouldValidate: true });
+    }
+  }, [initialEmail, initialName, form]);
+
 
   return (
     <Form {...form}>
@@ -214,4 +227,3 @@ export function CheckoutForm({ onSubmit, isSubmitting }: CheckoutFormProps) {
     </Form>
   );
 }
-

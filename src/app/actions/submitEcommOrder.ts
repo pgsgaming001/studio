@@ -21,11 +21,11 @@ const EcommCustomerInfoSchema = z.object({
 });
 
 const EcommOrderedProductSchema = z.object({
-  productId: z.string(), // Should correspond to Product._id.toString()
+  productId: z.string(), 
   name: z.string(),
   price: z.number(),
   quantity: z.number().int().min(1),
-  image: z.string().url().optional().or(z.literal("")), // Main image URL for the product
+  image: z.string().url().optional().or(z.literal("")),
 });
 
 const EcommOrderPayloadSchema = z.object({
@@ -33,6 +33,9 @@ const EcommOrderPayloadSchema = z.object({
   orderedProducts: z.array(EcommOrderedProductSchema).min(1, "Order must contain at least one product."),
   totalAmount: z.number().positive("Total amount must be positive."),
   paymentMethod: z.enum(["cod", "card_placeholder"]),
+  userId: z.string().optional(),
+  userEmail: z.string().email().optional(),
+  userName: z.string().optional(),
 });
 
 export type EcommOrderPayload = z.infer<typeof EcommOrderPayloadSchema>;
@@ -47,6 +50,9 @@ export interface EcommOrderMongo {
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   createdAt: Date;
   updatedAt: Date;
+  userId?: string; // Added for user tracking
+  userEmail?: string; // Added for user tracking (can override customerInfo.email if user is logged in)
+  userName?: string; // Added for user tracking (can override customerInfo.name if user is logged in)
 }
 
 export async function submitEcommOrder(
@@ -71,7 +77,14 @@ export async function submitEcommOrder(
     status: 'pending', // Initial status
     createdAt: new Date(),
     updatedAt: new Date(),
+    userId: validatedData.userId,
+    userEmail: validatedData.userEmail, // This will store the authenticated user's email
+    userName: validatedData.userName,   // This will store the authenticated user's name
   };
+
+  // If logged-in user provided details, they might override the form's customerInfo for name/email
+  // but the full address still comes from customerInfo.address
+  // The server action now directly stores userId, userEmail, userName from payload.
 
   console.log("E-commerce order document to be inserted into MongoDB:", JSON.stringify({ _id: newOrderId, ...orderToInsert }, null, 2));
 
@@ -96,4 +109,3 @@ export async function submitEcommOrder(
     return { success: false, error: `Database operation failed: ${e.message}` };
   }
 }
-

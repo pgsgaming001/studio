@@ -2,38 +2,41 @@
 'use server';
 
 import { connectToDatabase } from '@/lib/mongodb';
-import type { EcommOrderMongo } from './submitEcommOrder'; // Re-use the interface from submission
+import type { EcommOrderMongo } from './submitEcommOrder'; 
 import type { ObjectId } from 'mongodb';
 
 export type EcommOrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
-// Define the structure of the data returned to the client for e-commerce orders
 export interface EcommOrderDisplayData {
   id: string;
-  customerName: string;
-  customerEmail: string;
-  orderedProductsSummary: string; // e.g., "Product A, Product B (+2 more)"
+  customerName: string; // This will be populated from order.userName or order.customerInfo.name
+  customerEmail: string; // This will be populated from order.userEmail or order.customerInfo.email
+  orderedProductsSummary: string; 
   totalAmount: number;
   status: EcommOrderStatus;
   paymentMethod: string;
-  createdAt: string; // Dates will be stringified for client transfer
-  // Add any other fields needed for display
+  createdAt: string; 
+  userId?: string; // Added for potential admin filtering or display
 }
 
 
 export async function getEcommOrdersFromMongoDB(
-  // Future: Add pagination, filtering options if needed
+  { userIdFilter }: { userIdFilter?: string } = {}
 ): Promise<{ orders: EcommOrderDisplayData[], error?: string }> {
   try {
     const { db } = await connectToDatabase();
     const ordersCollection = db.collection<EcommOrderMongo>('ecommerce_orders');
     
-    const fetchedOrders = await ordersCollection.find({})
-      .sort({ createdAt: -1 }) // Sort by creation date, newest first
-      .limit(50) // Limit to 50 recent orders for now
+    const query: any = {};
+    if (userIdFilter) {
+      query.userId = userIdFilter;
+    }
+
+    const fetchedOrders = await ordersCollection.find(query)
+      .sort({ createdAt: -1 }) 
+      .limit(userIdFilter ? 0 : 50) // No limit if filtering for a user, otherwise limit for general admin view
       .toArray();
 
-    // Map MongoDB documents to client-friendly format
     const displayOrders: EcommOrderDisplayData[] = fetchedOrders.map(order => {
       const { _id, createdAt, customerInfo, orderedProducts, ...restOfOrder } = order;
       
@@ -50,11 +53,13 @@ export async function getEcommOrdersFromMongoDB(
       return {
         ...restOfOrder,
         id: _id!.toString(),
-        customerName: customerInfo.name,
-        customerEmail: customerInfo.email,
+        // Prioritize user fields if they exist (from logged-in user at time of order)
+        customerName: order.userName || customerInfo.name,
+        customerEmail: order.userEmail || customerInfo.email,
         orderedProductsSummary: productsSummary,
-        status: order.status as EcommOrderStatus, // Ensure status is correctly typed
+        status: order.status as EcommOrderStatus, 
         createdAt: createdAt.toISOString(),
+        userId: order.userId,
       };
     });
     

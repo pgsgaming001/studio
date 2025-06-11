@@ -22,16 +22,22 @@ export interface OrderDataMongo {
   status: string;
   createdAt: Date; // Changed from Firestore Timestamp to JS Date
   pdfDownloadURL?: string | null; // URL of the uploaded PDF in Firebase Storage
+  userId?: string; // Added for user tracking
+  userEmail?: string; // Added for user tracking
+  userName?: string; // Added for user tracking
 }
 
 // This is the type for data coming from the form, without MongoDB specifics
 export type OrderFormPayload = Omit<OrderDataMongo, 'status' | 'createdAt' | 'pdfDownloadURL' | '_id'> & {
   fileDataUri?: string | null; // Base64 data URI of the file to upload
+  userId?: string;
+  userEmail?: string;
+  userName?: string;
 };
 
 
 export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{success: boolean, orderId?: string, error?: string}> {
-  console.log("submitOrderToMongoDB called with order payload:", { ...order, fileDataUri: order.fileDataUri ? 'PRESENT' : 'ABSENT' });
+  console.log("submitOrderToMongoDB called with order payload:", { ...order, fileDataUri: order.fileDataUri ? 'PRESENT' : 'ABSENT', userId: order.userId });
 
   if (!storage) {
     console.error("Firebase Storage client is not initialized. Check src/lib/firebase.ts configuration.");
@@ -57,8 +63,7 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
     if (fileDataUri && originalFileName) {
       // Sanitize filename for storage path
       const sanitizedFileName = originalFileName.replace(/\s+/g, '_');
-      // Using a temp ID or a future MongoDB _id. For simplicity, let's use a new ObjectId for path uniqueness.
-      const storagePath = `user_documents/${tempOrderIdForStorage}/${sanitizedFileName}`;
+      const storagePath = `user_documents/${order.userId || tempOrderIdForStorage}/${Date.now()}_${sanitizedFileName}`;
       
       console.log(`Attempting to upload file to Firebase Storage at path: ${storagePath}...`);
       const storageRef = ref(storage, storagePath);
@@ -73,10 +78,11 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
     // 2. Prepare the order document for MongoDB
     const orderDocument: Omit<OrderDataMongo, '_id'> = {
       ...restOfOrderPayload,
-      fileName: originalFileName,
+      fileName: originalFileName, // ensure originalFileName is included
       status: 'pending', // Initial status
       createdAt: new Date(), // Use current date for MongoDB
       pdfDownloadURL: pdfDownloadURL, // Add the PDF URL if available
+      // userId, userEmail, userName are already in restOfOrderPayload if provided
     };
 
     console.log("Attempting to insert document into MongoDB 'orders' collection with data:", orderDocument);
@@ -102,7 +108,6 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
     } else if (typeof e === 'string') {
         errorMessage += ` Details: ${e}`;
     }
-    // MongoDB errors might have a 'code' or 'codeName'
     if (e && e.code) {
         errorMessage += ` (Code: ${e.code})`;
     } else if (e && e.codeName) {

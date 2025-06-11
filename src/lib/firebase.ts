@@ -21,13 +21,13 @@ import { getAuth, type Auth } from "firebase/auth";
 // PASTE YOUR CONFIGURATION OBJECT HERE, REPLACING THE PLACEHOLDERS.
 // -----------------------------------------------------------------------------
 const firebaseConfig = {
-    apiKey: "YOUR_ACTUAL_API_KEY", // <<-- REPLACE THIS
-    authDomain: "YOUR_ACTUAL_AUTH_DOMAIN", // <<-- REPLACE THIS (e.g., your-project-id.firebaseapp.com)
-    projectId: "YOUR_ACTUAL_PROJECT_ID", // <<-- REPLACE THIS (e.g., your-project-id)
-    storageBucket: "YOUR_ACTUAL_STORAGE_BUCKET", // <<-- REPLACE THIS (e.g., your-project-id.appspot.com)
-    messagingSenderId: "YOUR_ACTUAL_MESSAGING_SENDER_ID", // <<-- REPLACE THIS
-    appId: "YOUR_ACTUAL_APP_ID", // <<-- REPLACE THIS
-    measurementId: "YOUR_ACTUAL_MEASUREMENT_ID" // <<-- REPLACE THIS (Optional, for Analytics)
+  apiKey: "AIzaSyDtbjxfeH1EJJpqIv3ZiIjoCCDSjRzmCZk",
+  authDomain: "my-first-project-6eebf.firebaseapp.com",
+  projectId: "my-first-project-6eebf",
+  storageBucket: "my-first-project-6eebf.appspot.com",
+  messagingSenderId: "1010692245718",
+  appId: "1:1010692245718:web:2906c0523917847dc52177",
+  measurementId: "G-84V7PD58P5"
 };
 
 let app: FirebaseApp | null = null;

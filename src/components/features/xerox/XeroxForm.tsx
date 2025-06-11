@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -12,13 +13,12 @@ import { PaymentSection } from "./PaymentSection";
 import { PrintPreview } from "./PrintPreview";
 import { useToast } from "@/hooks/use-toast";
 import { PDFDocument } from 'pdf-lib';
-// Changed the import to use the new MongoDB action
 import { submitOrderToMongoDB, type OrderFormPayload } from '@/app/actions/submitOrder'; 
+import { useAuth } from "@/context/AuthContext"; // Import useAuth
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
 export type SubmissionStatus = 'idle' | 'preparing' | 'uploading' | 'processing' | 'success' | 'error';
 
-// Helper function to convert ArrayBuffer to Base64 Data URI
 function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
   let binary = '';
   const bytes = new Uint8Array(buffer);
@@ -30,11 +30,12 @@ function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
   return `data:${mimeType};base64,${base64}`;
 }
 
-const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; 
 
 export default function XeroxForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const authContext = useAuth(); // Get auth context
 
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -186,6 +187,8 @@ export default function XeroxForm() {
       description: "Submitting your order details and uploading file. Please wait.",
     });
 
+    const user = authContext.user; // Get user from context
+
     const orderPayload: OrderFormPayload = {
       fileName,
       fileDataUri, 
@@ -197,11 +200,13 @@ export default function XeroxForm() {
       layout,
       deliveryAddress,
       totalCost,
+      userId: user ? user.uid : undefined,
+      userEmail: user && user.email ? user.email : undefined,
+      userName: user && user.displayName ? user.displayName : undefined,
     };
 
     try {
       setSubmissionStatus('uploading');
-      // Changed to use the MongoDB submission action
       const result = await submitOrderToMongoDB(orderPayload); 
       if (result.success) {
         setSubmissionStatus('success');

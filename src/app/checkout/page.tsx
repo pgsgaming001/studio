@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Added useEffect
 import { useRouter } from 'next/navigation';
 import { useCart, type CartItem } from '@/context/CartContext';
 import { CheckoutForm, type CheckoutFormData } from '@/components/features/ecommerce/CheckoutForm';
@@ -12,15 +12,30 @@ import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, CreditCard, ShoppingBag, AlertTriangle, Loader2 } from 'lucide-react';
-import { submitEcommOrder } from '@/app/actions/submitEcommOrder'; 
+import { submitEcommOrder, type EcommOrderPayload } from '@/app/actions/submitEcommOrder'; 
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
 
 export default function CheckoutPage() {
   const cartContext = useCart();
+  const authContext = useAuth(); // Get auth context
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!cartContext || !cartContext.isCartReady) {
+  useEffect(() => {
+    // Redirect if cart is empty AFTER hydration and cart context is ready
+    if (cartContext && cartContext.isCartReady && cartContext.cartItems.length === 0) {
+      toast({
+        title: "Your cart is empty",
+        description: "Redirecting you to continue shopping.",
+        variant: "default"
+      });
+      router.replace('/cart');
+    }
+  }, [cartContext, router, toast]);
+
+
+  if (!cartContext || !cartContext.isCartReady || authContext.loading) {
     return (
       <main className="container mx-auto px-4 py-12 min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
         <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
@@ -30,31 +45,18 @@ export default function CheckoutPage() {
   }
 
   const { cartItems, getCartTotal, getItemCount, clearCart } = cartContext;
-
-  if (cartItems.length === 0 && cartContext.isCartReady) { // Ensure cart is ready before redirecting
-    // Redirect to cart page or homepage if cart is empty, handled after hydration
-    // It's better to handle this with a useEffect to prevent issues during SSR/hydration
-    if (typeof window !== "undefined") {
-         router.replace('/cart');
-    }
-    return (
-         <main className="container mx-auto px-4 py-12 min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center">
-            <ShoppingBag className="h-12 w-12 text-primary mb-4" />
-            <p className="text-xl text-muted-foreground">Your cart is empty. Redirecting...</p>
-        </main>
-    );
-  }
+  const { user } = authContext;
 
 
   const handlePlaceOrder = async (formData: CheckoutFormData) => {
     setIsSubmitting(true);
     toast({ title: "Processing your order...", description: "Please wait a moment." });
 
-    const orderPayload = {
+    const orderPayload: EcommOrderPayload = {
       customerInfo: {
         name: formData.name,
         phone: formData.phone,
-        email: formData.email,
+        email: formData.email, // This email is from the form
         address: {
           street: formData.street,
           city: formData.city,
@@ -63,15 +65,17 @@ export default function CheckoutPage() {
         },
       },
       orderedProducts: cartItems.map(item => ({
-        productId: item.id, // Assuming item.id is the MongoDB _id string
+        productId: item.id, 
         name: item.name,
         price: item.price,
         quantity: item.quantity,
-        image: item.image, // Include image for potential future use in order display
+        image: item.image, 
       })),
       totalAmount: getCartTotal(),
       paymentMethod: formData.paymentMethod,
-      // Order status will be set to 'pending' by default in the server action
+      userId: user ? user.uid : undefined,
+      userEmail: user && user.email ? user.email : undefined, // Logged-in user's email
+      userName: user && user.displayName ? user.displayName : undefined, // Logged-in user's name
     };
 
     try {
@@ -112,7 +116,7 @@ export default function CheckoutPage() {
       </div>
       <h1 className="font-headline text-3xl md:text-4xl font-bold text-primary mb-8 text-center">Checkout</h1>
 
-      {cartItems.length === 0 && cartContext.isCartReady ? (
+      {cartItems.length === 0 ? ( // This might briefly show before useEffect redirect
          <div className="text-center py-10">
             <ShoppingBag className="mx-auto h-24 w-24 text-muted-foreground opacity-50 mb-6" />
             <p className="text-xl text-muted-foreground mb-4">Your cart is empty.</p>
@@ -121,7 +125,13 @@ export default function CheckoutPage() {
       ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2">
-          <CheckoutForm onSubmit={handlePlaceOrder} isSubmitting={isSubmitting} />
+          <CheckoutForm 
+            onSubmit={handlePlaceOrder} 
+            isSubmitting={isSubmitting} 
+            // Pass initial email if user is logged in
+            initialEmail={user?.email || undefined} 
+            initialName={user?.displayName || undefined}
+          />
         </div>
 
         <div className="lg:col-span-1 lg:sticky lg:top-24">

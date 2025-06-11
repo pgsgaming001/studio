@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCartIcon, Package, LogIn, LogOut, UserCircle, Loader2, Settings, ShieldCheck } from 'lucide-react'; // Added Settings, ShieldCheck
+import { ShoppingCartIcon, Package, LogIn, LogOut, UserCircle, Loader2, Settings, ShieldCheck, ListOrdered } from 'lucide-react'; // Added ListOrdered
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/context/CartContext';
@@ -35,7 +35,7 @@ export function Header() {
     return 'U';
   };
   
-  const isAdminUser = authContext.user && authContext.user.email === 'pgsviews@gmail.com'; // Example admin check
+  const isAdminUser = authContext.user && authContext.user.email === 'pgsviews@gmail.com'; 
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -87,20 +87,24 @@ export function Header() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
+                  <DropdownMenuItem asChild>
+                    <Link href="/my-orders" className="cursor-pointer w-full">
+                      <ListOrdered className="mr-2 h-4 w-4" /> My Orders
+                    </Link>
+                  </DropdownMenuItem>
                   {/* <DropdownMenuItem asChild><Link href="/profile" className="cursor-pointer w-full"><UserCircle className="mr-2 h-4 w-4" /> Profile</Link></DropdownMenuItem> */}
-                  {/* <DropdownMenuItem asChild><Link href="/my-orders" className="cursor-pointer w-full"><Package className="mr-2 h-4 w-4" /> My Orders</Link></DropdownMenuItem> */}
                   {/* <DropdownMenuItem asChild><Link href="/settings" className="cursor-pointer w-full"><Settings className="mr-2 h-4 w-4" /> Settings</Link></DropdownMenuItem> */}
                    {isAdminUser && (
                     <DropdownMenuItem asChild>
                         <Link href="/admin/dashboard" className="cursor-pointer w-full">
-                            <ShieldCheck className="mr-2 h-4 w-4 text-blue-500" /> Admin Dashboard
+                            <ShieldCheck className="mr-2 h-4 w-4 text-blue-500" /> Print Admin
                         </Link>
                     </DropdownMenuItem>
                   )}
                    {isAdminUser && (
                     <DropdownMenuItem asChild>
                         <Link href="/admin/ecommerce-dashboard" className="cursor-pointer w-full">
-                            <ShoppingCartIcon className="mr-2 h-4 w-4 text-green-500" /> E-comm Dashboard
+                            <ShoppingCartIcon className="mr-2 h-4 w-4 text-green-500" /> E-comm Admin
                         </Link>
                     </DropdownMenuItem>
                   )}

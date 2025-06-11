@@ -16,13 +16,14 @@ import { getEcommOrdersFromMongoDB, type EcommOrderDisplayData, type EcommOrderS
 import { updateEcommOrderStatus } from "@/app/actions/updateEcommOrderStatus";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext"; // Import useAuth
 
 const VALID_ECOMM_STATUSES: EcommOrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
 const initialEcommerceSummary = {
   totalActiveProducts: 0,
   totalSalesMonth: 0.00,
-  newCustomersMonth: 0,
+  newCustomersMonth: 0, // This would require tracking unique user IDs from orders
 };
 
 export default function EcommerceDashboardPage() {
@@ -34,58 +35,85 @@ export default function EcommerceDashboardPage() {
   const [errorOrders, setErrorOrders] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
+  const authContext = useAuth(); // Get auth context
 
   const [summaryData, setSummaryData] = useState(initialEcommerceSummary);
 
   useEffect(() => {
-    const fetchAdminProducts = async () => {
-      setIsLoadingProducts(true);
-      setErrorProducts(null);
-      try {
-        const result = await getProducts({});
-        if (result.error) {
-          throw new Error(result.error);
-        }
-        setProducts(result.products);
-        setSummaryData(prev => ({
-          ...prev,
-          totalActiveProducts: result.products.filter(p => p.status === 'active').length
-        }));
-      } catch (err: any) {
-        console.error("Error fetching products for admin dashboard:", err);
-        setErrorProducts(`Failed to load products: ${err.message}`);
-      } finally {
-        setIsLoadingProducts(false);
+    // Admin access control
+    if (!authContext.loading) {
+      if (!authContext.user) {
+        router.push('/'); 
+        toast({ title: "Access Denied", description: "Please sign in to access the admin dashboard.", variant: "destructive" });
+        return;
+      } else if (authContext.user.email !== 'pgsviews@gmail.com') { // Your admin email
+        router.push('/');
+        toast({ title: "Access Denied", description: "You are not authorized to view this page.", variant: "destructive" });
+        return;
       }
-    };
+    }
 
-    const fetchEcommOrders = async () => {
-      setIsLoadingOrders(true);
-      setErrorOrders(null);
-      try {
-        const result = await getEcommOrdersFromMongoDB();
-        if (result.error) {
-          throw new Error(result.error);
+    // Only proceed to fetch data if admin check passes (or is still loading)
+    if (authContext.loading || (authContext.user && authContext.user.email === 'pgsviews@gmail.com')) {
+        const fetchAdminProducts = async () => {
+        setIsLoadingProducts(true);
+        setErrorProducts(null);
+        try {
+            const result = await getProducts({});
+            if (result.error) {
+            throw new Error(result.error);
+            }
+            setProducts(result.products);
+            setSummaryData(prev => ({
+            ...prev,
+            totalActiveProducts: result.products.filter(p => p.status === 'active').length
+            }));
+        } catch (err: any) {
+            console.error("Error fetching products for admin dashboard:", err);
+            setErrorProducts(`Failed to load products: ${err.message}`);
+        } finally {
+            setIsLoadingProducts(false);
         }
-        setEcommOrders(result.orders);
-      } catch (err: any) {
-        console.error("Error fetching e-commerce orders:", err);
-        setErrorOrders(`Failed to load e-commerce orders: ${err.message}`);
-      } finally {
-        setIsLoadingOrders(false);
-      }
-    };
+        };
 
-    fetchAdminProducts();
-    fetchEcommOrders();
-  }, [toast]);
+        const fetchEcommOrders = async () => {
+        setIsLoadingOrders(true);
+        setErrorOrders(null);
+        try {
+            const result = await getEcommOrdersFromMongoDB(); // Fetch all orders
+            if (result.error) {
+            throw new Error(result.error);
+            }
+            setEcommOrders(result.orders);
+            // Placeholder for calculating total sales & new customers from orders
+            const totalSales = result.orders.reduce((sum, order) => sum + order.totalAmount, 0);
+            const uniqueUserIds = new Set(result.orders.map(order => order.userId).filter(Boolean));
+            setSummaryData(prev => ({
+                ...prev,
+                totalSalesMonth: totalSales, // This is total sales, not just month. Update if date filtering is added.
+                newCustomersMonth: uniqueUserIds.size 
+            }));
+        } catch (err: any) {
+            console.error("Error fetching e-commerce orders:", err);
+            setErrorOrders(`Failed to load e-commerce orders: ${err.message}`);
+        } finally {
+            setIsLoadingOrders(false);
+        }
+        };
+
+        fetchAdminProducts();
+        fetchEcommOrders();
+    }
+  }, [authContext.loading, authContext.user, router, toast]);
 
   const handleEditProduct = (productId: string) => {
     toast({ title: "Edit Product Clicked", description: `Implement form for editing product ID: ${productId.substring(0,8)}...` });
+    // router.push(`/admin/ecommerce-dashboard/edit-product/${productId}`); // Future
   };
 
   const handleDeleteProduct = (productId: string) => {
     toast({ title: "Delete Product Clicked", description: `Implement deletion for product ID: ${productId.substring(0,8)}...` });
+    // Call a server action to delete product, then refetch products
   };
 
   const handleEcommStatusChange = async (orderId: string, newStatus: EcommOrderStatus) => {
@@ -118,13 +146,17 @@ export default function EcommerceDashboardPage() {
     }
   };
 
-  if (isLoadingProducts || isLoadingOrders) {
+  if (authContext.loading || (isLoadingProducts || isLoadingOrders) && authContext.user?.email === 'pgsviews@gmail.com') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-secondary/50">
         <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
         <p className="text-xl text-muted-foreground">Loading E-commerce Dashboard Data...</p>
       </div>
     );
+  }
+  
+  if (!authContext.user || authContext.user.email !== 'pgsviews@gmail.com') {
+      return null; 
   }
 
   if (errorProducts || errorOrders) {
@@ -169,22 +201,22 @@ export default function EcommerceDashboardPage() {
         </Card>
         <Card className="shadow-lg rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Sales (Month)</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Sales</CardTitle>
             <DollarSign className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">${summaryData.totalSalesMonth.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Sales in the current month (placeholder)</p>
+            <p className="text-xs text-muted-foreground">All time sales</p>
           </CardContent>
         </Card>
         <Card className="shadow-lg rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">New Customers (Month)</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Customers</CardTitle>
             <Users className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{summaryData.newCustomersMonth}</div>
-            <p className="text-xs text-muted-foreground">Customers signed up this month (placeholder)</p>
+            <p className="text-xs text-muted-foreground">Unique customers with orders</p>
           </CardContent>
         </Card>
       </section>
@@ -303,6 +335,8 @@ export default function EcommerceDashboardPage() {
                         </TableCell>
                         <TableCell className="font-medium px-3 py-3 truncate max-w-xs" title={order.customerEmail}>
                           {order.customerName}
+                          <br />
+                          <span className="text-xs text-muted-foreground">{order.customerEmail}</span>
                         </TableCell>
                         <TableCell className="px-3 py-3 text-sm text-muted-foreground truncate max-w-xs" title={order.orderedProductsSummary}>
                           {order.orderedProductsSummary}

@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Package, DollarSign, ListChecks, AlertTriangle, Loader2, FileText, Palette, CopyIcon, Scaling, MapPin, CalendarDays, Download, Printer } from "lucide-react";
+import { Package, DollarSign, ListChecks, AlertTriangle, Loader2, FileText, Palette, CopyIcon, Scaling, MapPin, CalendarDays, Download, Printer, User } from "lucide-react"; // Added User
 import { getOrdersFromMongoDB, type OrderDisplayData as FetchedOrderData } from "@/app/actions/getOrders";
 import { updateOrderStatus, type OrderStatus } from "@/app/actions/updateOrderStatus";
+import { useAuth } from "@/context/AuthContext"; // Import useAuth
+import { useRouter } from "next/navigation"; // Import useRouter
 
 const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
@@ -24,10 +26,57 @@ export default function PrintServiceDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const authContext = useAuth(); // Get auth context
+  const router = useRouter(); // Get router instance
 
   const [totalOrders, setTotalOrders] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
+
+  useEffect(() => {
+    // Admin access control
+    if (!authContext.loading) {
+      if (!authContext.user) {
+        router.push('/'); 
+        toast({ title: "Access Denied", description: "Please sign in to access the admin dashboard.", variant: "destructive" });
+        return;
+      } else if (authContext.user.email !== 'pgsviews@gmail.com') { // Your admin email
+        router.push('/');
+        toast({ title: "Access Denied", description: "You are not authorized to view this page.", variant: "destructive" });
+        return;
+      }
+    }
+    // Only proceed to fetch data if admin check passes (or is still loading)
+    if (authContext.loading || (authContext.user && authContext.user.email === 'pgsviews@gmail.com')) {
+        const fetchOrders = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const result = await getOrdersFromMongoDB(); // Fetch all orders for admin
+
+            if (result.error) {
+            throw new Error(result.error);
+            }
+            
+            const processedOrders: OrderDisplayDataInternal[] = result.orders.map((order) => ({
+                ...order,
+                status: order.status as OrderStatus, 
+                createdAt: order.createdAt,
+            }));
+
+            setOrders(processedOrders);
+            calculateSummaryMetrics(processedOrders);
+        } catch (err: any) {
+            console.error("Error fetching print orders for dashboard:", err);
+            setError(`Failed to fetch print orders: ${err.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+        };
+        fetchOrders();
+    }
+  }, [authContext.loading, authContext.user, router, toast]);
+
 
   const calculateSummaryMetrics = (currentOrders: OrderDisplayDataInternal[]) => {
     let revenue = 0;
@@ -43,35 +92,6 @@ export default function PrintServiceDashboardPage() {
     setTotalOrders(currentOrders.length);
   };
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const result = await getOrdersFromMongoDB();
-
-        if (result.error) {
-          throw new Error(result.error);
-        }
-        
-        const processedOrders: OrderDisplayDataInternal[] = result.orders.map((order) => ({
-            ...order,
-            status: order.status as OrderStatus, 
-            createdAt: order.createdAt,
-          }));
-
-        setOrders(processedOrders);
-        calculateSummaryMetrics(processedOrders);
-      } catch (err: any) {
-        console.error("Error fetching print orders for dashboard:", err);
-        setError(`Failed to fetch print orders: ${err.message}`);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchOrders();
-  }, []);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     const originalOrders = [...orders];
@@ -108,8 +128,8 @@ export default function PrintServiceDashboardPage() {
     }
   };
 
-
-  if (isLoading) {
+  // Loading state for auth check
+  if (authContext.loading || (isLoading && authContext.user?.email === 'pgsviews@gmail.com')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-secondary/50">
         <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
@@ -117,6 +137,13 @@ export default function PrintServiceDashboardPage() {
       </div>
     );
   }
+  
+  // If not admin after loading, this component might not render fully due to redirect
+  // but this is a fallback.
+  if (!authContext.user || authContext.user.email !== 'pgsviews@gmail.com') {
+      return null; // Or a more specific "Access Denied" component if redirection fails
+  }
+
 
   if (error) {
     return (
@@ -188,10 +215,11 @@ export default function PrintServiceDashboardPage() {
                   No print orders found.
                 </div>
               ) : (
-                <Table className="min-w-[1100px]"> 
+                <Table className="min-w-[1200px]"> 
                   <TableHeader className="sticky top-0 bg-secondary/95 backdrop-blur-sm z-10"> 
                     <TableRow>
                       <TableHead className="whitespace-nowrap px-2 py-3">Order ID</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-3"><User size={16} className="inline mr-1"/>Customer</TableHead>
                       <TableHead className="whitespace-nowrap px-2 py-3"><FileText size={16} className="inline mr-1"/>File</TableHead>
                       <TableHead className="whitespace-nowrap px-2 py-3"><Download size={16} className="inline mr-1"/>Attachment</TableHead>
                       <TableHead className="text-center whitespace-nowrap px-2 py-3"><CopyIcon size={16} className="inline mr-1"/>Copies</TableHead>
@@ -208,6 +236,11 @@ export default function PrintServiceDashboardPage() {
                       <TableRow key={order.id} className="hover:bg-primary/5 transition-colors">
                         <TableCell className="font-mono text-xs text-muted-foreground truncate px-2 py-3" title={order.id}>
                           {order.id.substring(0, 8)}...
+                        </TableCell>
+                        <TableCell className="font-medium truncate max-w-[180px] px-2 py-3" title={order.userEmail || 'N/A'}>
+                          {order.userName || 'Guest'}
+                          <br />
+                          <span className="text-xs text-muted-foreground">{order.userEmail || 'No email'}</span>
                         </TableCell>
                         <TableCell className="font-medium truncate max-w-[150px] px-2 py-3" title={order.fileName || 'N/A'}>
                           {order.fileName || "N/A"}
@@ -262,5 +295,3 @@ export default function PrintServiceDashboardPage() {
     </div>
   );
 }
-
-    
