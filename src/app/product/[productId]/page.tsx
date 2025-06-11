@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from 'next/navigation'; // Import useParams
 import { getProductById, type ProductDisplayData } from "@/app/actions/getProductById";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,13 +12,14 @@ import { Star, ShoppingBag, AlertTriangle, Info, ArrowLeft, Loader2 } from "luci
 import Image from "next/image";
 import Link from "next/link";
 import { format } from "date-fns";
-import { useCart } from "@/context/CartContext"; // Import useCart
+import { useCart } from "@/context/CartContext"; 
 
-interface ProductPageProps {
-  params: {
-    productId: string;
-  };
-}
+// ProductPageProps interface is no longer strictly needed for params if using the hook
+// interface ProductPageProps {
+//   params: {
+//     productId: string;
+//   };
+// }
 
 const StarRating = ({ rating, reviewCount }: { rating?: number; reviewCount?: number }) => {
   if (typeof rating !== 'number' || rating <= 0) {
@@ -42,9 +44,11 @@ const StarRating = ({ rating, reviewCount }: { rating?: number; reviewCount?: nu
 };
 
 
-export default function ProductPage({ params }: ProductPageProps) {
-  const { productId } = params;
-  const cartContext = useCart(); // Use cart context
+export default function ProductPage() { // Removed params from props
+  const params = useParams(); // Use the hook
+  const productId = params.productId as string; // Extract productId from hook's return value
+
+  const cartContext = useCart(); 
   const [product, setProduct] = useState<ProductDisplayData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +57,11 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   useEffect(() => {
     const fetchProduct = async () => {
+      if (!productId) { // Ensure productId is available
+        setIsLoading(false);
+        setError("Product ID is missing.");
+        return;
+      }
       setIsLoading(true);
       setError(null);
       const result = await getProductById(productId);
@@ -71,7 +80,7 @@ export default function ProductPage({ params }: ProductPageProps) {
     };
 
     fetchProduct();
-  }, [productId]);
+  }, [productId]); // productId from useParams is stable but good practice to include
   
   if (!cartContext || !cartContext.isCartReady) {
      return (
@@ -86,7 +95,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   const handleAddToCart = () => {
     if (product) {
-      addToCart(product); // Use context's addToCart
+      addToCart(product); 
     }
   };
 
@@ -262,3 +271,4 @@ export default function ProductPage({ params }: ProductPageProps) {
     </main>
   );
 }
+
