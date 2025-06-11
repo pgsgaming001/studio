@@ -3,6 +3,7 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getAnalytics, type Analytics } from "firebase/analytics";
+import { getAuth, type Auth } from "firebase/auth"; // Added Auth import
 
 // IMPORTANT: Ensure these are your actual Firebase project configuration values!
 // You can find this in your Firebase project settings.
@@ -21,6 +22,7 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let db: Firestore;
 let storage: FirebaseStorage;
+let auth: Auth; // Added Auth instance
 let analytics: Analytics | undefined;
 
 if (!getApps().length) {
@@ -29,17 +31,13 @@ if (!getApps().length) {
     console.log("Firebase initialized with config for project:", firebaseConfig.projectId);
   } catch (error) {
     console.error("Error initializing Firebase app:", error);
-    // Fallback or rethrow, depending on how critical initialization is.
-    // For now, we'll let it proceed and other services might fail.
-    // A more robust solution might involve not exporting db, storage if app init fails.
-    app = null as any; // To satisfy TypeScript if it must be assigned
+    app = null as any; 
   }
 } else {
   app = getApp();
   console.log("Firebase app already initialized for project:", firebaseConfig.projectId);
 }
 
-// Initialize Firestore and Storage only if app initialization was successful
 if (app) {
   try {
     db = getFirestore(app);
@@ -57,7 +55,14 @@ if (app) {
     storage = null as any;
   }
 
-  // Initialize Analytics only on the client side, if app is initialized, and if measurementId is available
+  try {
+    auth = getAuth(app); // Initialize Auth
+    console.log("Firebase Auth initialized.");
+  } catch (error) {
+    console.error("Error initializing Firebase Auth:", error);
+    auth = null as any;
+  }
+
   if (typeof window !== 'undefined') {
     if (firebaseConfig.measurementId) {
       console.log("Attempting to initialize Firebase Analytics with Measurement ID:", firebaseConfig.measurementId);
@@ -72,10 +77,11 @@ if (app) {
     }
   }
 } else {
-  console.error("Firebase app failed to initialize. Firestore, Storage, and Analytics will not be available.");
+  console.error("Firebase app failed to initialize. Firestore, Storage, Auth, and Analytics will not be available.");
   db = null as any;
   storage = null as any;
+  auth = null as any;
   analytics = undefined;
 }
 
-export { app, db, storage, analytics };
+export { app, db, storage, auth, analytics };

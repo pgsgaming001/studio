@@ -3,11 +3,12 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { CartProvider } from '@/context/CartContext';
+import { AuthProvider } from '@/context/AuthContext'; // Import AuthProvider
 import { Header } from '@/components/layout/Header';
 
 export const metadata: Metadata = {
-  title: 'Xerox2U', // Updated title to match app name
-  description: 'Upload PDF, print, deliver to your home, or shop our online store.', // Updated description
+  title: 'Xerox2U',
+  description: 'Upload PDF, print, deliver to your home, or shop our online store.',
 };
 
 export default function RootLayout({
@@ -25,13 +26,15 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased bg-background text-foreground min-h-screen flex flex-col">
-        <CartProvider>
-          <Header />
-          <div className="flex-grow">
-            {children}
-          </div>
-          <Toaster />
-        </CartProvider>
+        <AuthProvider> {/* Wrap with AuthProvider */}
+          <CartProvider>
+            <Header />
+            <div className="flex-grow">
+              {children}
+            </div>
+            <Toaster />
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );
