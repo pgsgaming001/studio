@@ -4,15 +4,11 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getProducts, type ProductSummary } from "@/app/actions/getProducts";
-import { ProductCard } from "@/components/features/ecommerce/ProductCard"; // We'll need to extract ProductCard
+import { ProductCard } from "@/components/features/ecommerce/ProductCard"; 
 import { Loader2, Search, AlertTriangle, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-// ProductCard component needs to be usable here.
-// If it's not already in a separate file, it should be extracted from EcommercePlaceholder.tsx
-// For now, I'll assume it's extracted or define a similar one.
-// Let's assume ProductCard is extracted to "@/components/features/ecommerce/ProductCard.tsx"
 
 function SearchResults() {
   const searchParams = useSearchParams();
@@ -92,10 +88,8 @@ function SearchResults() {
       </p>
 
       {products.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {products.map(product => (
-            // This assumes ProductCard is extracted and can be used here
-            // If not, you'd replicate its structure or pass it as a prop
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
@@ -115,8 +109,7 @@ function SearchResults() {
 
 export default function SearchPage() {
   return (
-    // Suspense is required by Next.js when using useSearchParams
-    <Suspense fallback={<Loader2 className="h-12 w-12 text-primary animate-spin mx-auto my-20" />}>
+    <Suspense fallback={<div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]"><Loader2 className="h-12 w-12 text-primary animate-spin mb-4" /><p className="text-lg text-muted-foreground">Loading Search...</p></div>}>
       <SearchResults />
     </Suspense>
   );

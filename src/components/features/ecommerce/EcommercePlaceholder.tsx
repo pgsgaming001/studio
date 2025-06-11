@@ -13,6 +13,7 @@ import { getProducts, type ProductSummary } from "@/app/actions/getProducts";
 import { useCart } from "@/context/CartContext";
 import type { ProductDisplayData } from "@/app/actions/getProductById";
 import { useRouter } from "next/navigation"; // Import useRouter
+import { ProductCard } from "./ProductCard"; // Ensure ProductCard is imported
 
 const placeholderCategories = [
   { name: "Electronics", icon: Zap, dataAiHint: "gadgets technology", slug: "electronics" },
@@ -22,98 +23,6 @@ const placeholderCategories = [
 ];
 
 interface Product extends ProductSummary {}
-
-
-const ProductCard = ({ product }: { product: Product }) => {
-  const cartContext = useCart();
-  const filledStars = product.rating ? Math.floor(product.rating) : 0;
-  const hasHalfStar = product.rating ? product.rating % 1 !== 0 : false;
-  
-  const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault(); 
-    e.stopPropagation(); 
-    if (cartContext) {
-      cartContext.addToCart(product as unknown as ProductDisplayData);
-    } else {
-      console.error("Cart context not available");
-    }
-  };
-
-  return (
-    <Link href={`/product/${product.id}`} passHref legacyBehavior>
-      <a className="block h-full group">
-        <Card className="overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-300 rounded-xl flex flex-col h-full bg-card">
-          <div className="relative w-full aspect-square bg-secondary overflow-hidden">
-            <Image
-              src={product.image || "https://placehold.co/400x400.png"}
-              alt={product.name}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              style={{ objectFit: 'cover' }}
-              className="group-hover:scale-105 transition-transform duration-300"
-              data-ai-hint={product.dataAiHint || product.name.split(" ").slice(0,2).join(" ")}
-            />
-            {product.originalPrice && product.originalPrice > product.price && (
-              <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs font-semibold px-2 py-1 rounded-full shadow-md">
-                SALE
-              </div>
-            )}
-             {(!product.stock || product.stock <= 0) && (
-              <div className="absolute bottom-2 left-2 bg-slate-700/80 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
-                Out of Stock
-              </div>
-            )}
-          </div>
-          <CardHeader className="p-4 flex-grow">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">{product.category}</p>
-            <CardTitle className="text-lg font-semibold text-card-foreground mt-1 leading-tight h-12 overflow-hidden group-hover:text-primary transition-colors">
-              {product.name}
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground mt-1 h-10 overflow-hidden">
-              {product.description}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            {product.rating && product.rating > 0 && (
-            <div className="flex items-center mb-2">
-              {[...Array(filledStars)].map((_, i) => (
-                <Star key={`filled-${i}`} className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-              ))}
-              {hasHalfStar && <Star key="half" className="h-4 w-4 text-yellow-400 fill-yellow-200" />}
-              {[...Array(5 - filledStars - (hasHalfStar ? 1 : 0))].map((_, i) => (
-                <Star key={`empty-${i}`} className="h-4 w-4 text-muted-foreground/50 fill-muted-foreground/20" />
-              ))}
-              <span className="ml-2 text-xs text-muted-foreground">({product.rating.toFixed(1)})</span>
-            </div>
-            )}
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-xl font-bold text-primary">
-                  ${product.price.toFixed(2)}
-                </p>
-                {product.originalPrice && product.originalPrice > product.price && (
-                  <p className="text-xs text-muted-foreground line-through">
-                    ${product.originalPrice.toFixed(2)}
-                  </p>
-                )}
-              </div>
-              <Button 
-                size="sm" 
-                variant="default" 
-                className="shadow-md hover:shadow-lg transition-shadow z-10"
-                onClick={handleAddToCart}
-                disabled={!product.stock || product.stock <= 0}
-              >
-                <ShoppingBag className="mr-1.5 h-4 w-4" /> 
-                {product.stock && product.stock > 0 ? "Add" : "Sold Out"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </a>
-    </Link>
-  );
-};
 
 
 export function EcommercePlaceholder() {
@@ -290,18 +199,15 @@ export function EcommercePlaceholder() {
         </div>
       </section>
 
-      {(allProducts.length > 0 || searchTerm) && ( // Show section even if filteredProducts is empty due to search
+      {(allProducts.length > 0 || searchTerm) && ( 
         <section className="container mx-auto px-4">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="font-headline text-3xl font-semibold text-foreground">
                   {searchTerm ? `Results for "${searchTerm}"` : "Discover More"}
                 </h2>
-                {/* <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary">
-                    Filter & Sort
-                </Button> */}
             </div>
             {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {filteredProducts.map((product) => (
                     <ProductCard key={product.id} product={product} />
                 ))}
@@ -315,7 +221,7 @@ export function EcommercePlaceholder() {
                 </div>
               )
             )}
-            {!searchTerm && allProducts.length > 12 && ( // Assuming initial fetch was more than 12
+            {!searchTerm && allProducts.length > 12 && ( 
                  <div className="text-center mt-10">
                     <Button size="lg" variant="outline" className="text-base px-8 py-6 border-2 border-primary text-primary hover:bg-primary/10 hover:text-primary shadow-sm hover:shadow-md transition-shadow">
                         Load More Products
