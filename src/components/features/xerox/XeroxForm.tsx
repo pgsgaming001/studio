@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileUpload } from "./FileUpload";
 import { PrintSettings } from "./PrintSettings";
@@ -212,7 +212,6 @@ export default function XeroxForm() {
         setIsSubmitting(false);
       }
     } else { // Home Delivery
-      // Prepare data for payment page
       const paymentPageQuery = new URLSearchParams({
         fileName: fileName || "Untitled.pdf",
         numPages: numPagesStr,
@@ -260,19 +259,45 @@ export default function XeroxForm() {
         </CardHeader>
         <CardContent className="p-6">
           {currentStep === 'upload_settings' && (
-            <div className="space-y-6">
-              <FileUpload onFileChange={handleFileChange} fileName={fileName} />
-              {file && (
-                 <PrintSettings
-                  numPages={numPagesStr} setNumPages={setNumPagesStr}
-                  pageCountStatus={pageCountStatus}
-                  numCopies={numCopiesStr} setNumCopies={setNumCopiesStr}
-                  printColor={printColor} setPrintColor={setPrintColor}
-                  paperSize={paperSize} setPaperSize={setPaperSize}
-                  printSides={printSides} setPrintSides={setPrintSides}
-                  layout={layout} setLayout={setLayout}
-                />
-              )}
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Column 1: Upload and Settings */}
+              <div className="space-y-6">
+                <FileUpload onFileChange={handleFileChange} fileName={fileName} />
+                {file && ( // Show settings if a file is selected
+                  <PrintSettings
+                    numPages={numPagesStr} setNumPages={setNumPagesStr}
+                    pageCountStatus={pageCountStatus}
+                    numCopies={numCopiesStr} setNumCopies={setNumCopiesStr}
+                    printColor={printColor} setPrintColor={setPrintColor}
+                    paperSize={paperSize} setPaperSize={setPaperSize}
+                    printSides={printSides} setPrintSides={setPrintSides}
+                    layout={layout} setLayout={setLayout}
+                  />
+                )}
+              </div>
+              {/* Column 2: Preview */}
+              <div>
+                {file && ( // Show preview card if a file is selected
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-xl font-semibold text-accent">
+                        Schematic Preview
+                      </CardTitle>
+                      <CardDescription>
+                        First physical sheet layout.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <PrintPreview
+                        fileName={fileName}
+                        numPages={numPagesStr}
+                        printSides={printSides}
+                        layout={layout}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           )}
 
@@ -384,4 +409,3 @@ export default function XeroxForm() {
     </div>
   );
 }
-    
