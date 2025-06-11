@@ -20,11 +20,15 @@ import type { ProductFormPayload } from "@/app/actions/addProduct";
 import { addProduct } from "@/app/actions/addProduct"; 
 import imageCompression from 'browser-image-compression';
 
+const CATEGORY_OPTIONS = ["Electronics", "Home Goods", "Fashion", "Office"];
 
 const clientProductFormSchema = z.object({
   name: z.string().min(3, "Product name must be at least 3 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
-  category: z.string().min(2, "Category is required."),
+  category: z.string().min(2, "Category is required.").refine(
+    (val) => CATEGORY_OPTIONS.includes(val),
+    { message: "Please select a valid category." }
+  ),
   price: z.coerce.number({ invalid_type_error: "Price must be a number." }).positive("Price must be positive."),
   originalPrice: z.coerce.number({ invalid_type_error: "Original price must be a number." }).optional(),
   stock: z.coerce.number({ invalid_type_error: "Stock must be a number." }).int().min(0, "Stock cannot be negative."),
@@ -67,7 +71,7 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
     defaultValues: {
       name: "",
       description: "",
-      category: "",
+      category: "", // Default to empty, user must select
       price: 0,
       originalPrice: undefined,
       stock: 0,
@@ -143,7 +147,7 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
         price: data.price,
         originalPrice: data.originalPrice,
         stock: data.stock,
-        tags: data.tags || "", 
+        tags: data.tags || "",
         status: data.status,
         isFeatured: data.isFeatured,
         images: [], 
@@ -188,7 +192,24 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
             </div>
             <div>
               <Label htmlFor="category">Category</Label>
-              <Input id="category" {...register("category")} placeholder="e.g., Electronics" className={errors.category ? "border-destructive" : ""} />
+              <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <SelectTrigger id="category" className={errors.category ? "border-destructive" : ""}>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORY_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.category && <p className="text-sm text-destructive mt-1">{errors.category.message}</p>}
             </div>
           </div>
@@ -301,4 +322,3 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
     </form>
   );
 }
-
