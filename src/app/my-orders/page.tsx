@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, AlertTriangle, ShoppingBag, Printer, Package, LogIn, ListOrdered, FileText, Palette, CopyIcon, DollarSign, CalendarDays } from "lucide-react";
+import { Loader2, AlertTriangle, ShoppingBag, Printer, Package, LogIn, ListOrdered, FileText, Palette, CopyIcon, DollarSign, CalendarDays, Ticket, Home, Truck, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { getOrdersFromMongoDB, type OrderDisplayData as PrintOrderData } from "@/app/actions/getOrders";
 import { getEcommOrdersFromMongoDB, type EcommOrderDisplayData as EcommOrderData } from "@/app/actions/getEcommOrders";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 export default function MyOrdersPage() {
   const authContext = useAuth();
@@ -33,7 +34,6 @@ export default function MyOrdersPage() {
 
     if (!authContext.user) {
       setIsLoading(false);
-      // No need to redirect here, content will show sign-in prompt
       return;
     }
 
@@ -103,7 +103,6 @@ export default function MyOrdersPage() {
     );
   }
 
-
   return (
     <main className="container mx-auto px-4 py-8 md:py-12">
       <header className="mb-8">
@@ -140,13 +139,13 @@ export default function MyOrdersPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                <Table className="min-w-[800px]">
+                <Table className="min-w-[900px]">
                   <TableHeader className="sticky top-0 bg-secondary/95 backdrop-blur-sm z-10">
                     <TableRow>
                       <TableHead>Order ID</TableHead>
                       <TableHead><FileText size={16} className="inline mr-1"/>File</TableHead>
-                      <TableHead><CopyIcon size={16} className="inline mr-1"/>Copies</TableHead>
-                      <TableHead><Palette size={16} className="inline mr-1"/>Color</TableHead>
+                      <TableHead>Delivery</TableHead>
+                      <TableHead>Pickup Code</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right"><DollarSign size={16} className="inline mr-1"/>Cost</TableHead>
                       <TableHead className="text-right"><CalendarDays size={16} className="inline mr-1"/>Date</TableHead>
@@ -156,11 +155,32 @@ export default function MyOrdersPage() {
                     {printOrders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-mono text-xs text-muted-foreground" title={order.id}>{order.id.substring(0, 8)}...</TableCell>
-                        <TableCell className="truncate max-w-xs" title={order.fileName || 'N/A'}>{order.fileName || "N/A"}</TableCell>
-                        <TableCell className="text-center">{order.numCopies}</TableCell>
-                        <TableCell className="capitalize">{order.printColor}</TableCell>
+                        <TableCell className="truncate max-w-[150px]" title={order.fileName || 'N/A'}>
+                          {order.fileName || "N/A"}
+                          <p className="text-xs text-muted-foreground">{order.numCopies} copies, {order.printColor}, {order.paperSize}</p>
+                        </TableCell>
+                        <TableCell className="max-w-[200px]">
+                          {order.deliveryMethod === 'pickup' ? (
+                            <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                              <Package size={14}/> Pickup: {order.pickupCenter || "N/A"}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                              <Truck size={14}/> Home Delivery: {order.deliveryAddress?.city}, {order.deliveryAddress?.zip}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {order.deliveryMethod === 'pickup' ? (
+                            <Badge className="bg-accent text-accent-foreground hover:bg-accent/90">
+                              <Ticket size={14} className="mr-1.5"/>{order.pickupCode}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
                         <TableCell className="capitalize">{order.status}</TableCell>
-                        <TableCell className="text-right">${order.totalCost.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">₹{order.totalCost.toFixed(2)}</TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">{format(new Date(order.createdAt), "MMM d, yyyy HH:mm")}</TableCell>
                       </TableRow>
                     ))}
@@ -204,7 +224,7 @@ export default function MyOrdersPage() {
                       <TableRow key={order.id}>
                         <TableCell className="font-mono text-xs text-muted-foreground" title={order.id}>{order.id.substring(0, 8)}...</TableCell>
                         <TableCell className="truncate max-w-xs" title={order.orderedProductsSummary}>{order.orderedProductsSummary}</TableCell>
-                        <TableCell className="text-right font-semibold">${order.totalAmount.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-semibold">₹{order.totalAmount.toFixed(2)}</TableCell>
                         <TableCell className="capitalize">{order.paymentMethod === 'cod' ? 'COD' : 'Card'}</TableCell>
                         <TableCell className="capitalize">{order.status}</TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">{format(new Date(order.createdAt), "MMM d, yyyy HH:mm")}</TableCell>
@@ -221,3 +241,4 @@ export default function MyOrdersPage() {
     </main>
   );
 }
+    

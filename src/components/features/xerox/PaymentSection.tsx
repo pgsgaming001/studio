@@ -1,4 +1,5 @@
 
+
 import { Button } from "@/components/ui/button";
 import { Send, ShieldCheck, Loader2, CheckCircle, XCircle } from "lucide-react"; // Added Loader2, CheckCircle, XCircle
 import { type SubmissionStatus } from "./XeroxForm"; // Import SubmissionStatus type
@@ -61,14 +62,12 @@ export function PaymentSection({ onPlaceOrder, disabled, submissionStatus }: Pay
         </p>
       )}
       
-      {/* Keep the original message for context when not submitting */}
        {submissionStatus === 'idle' && (
          <p className="text-xs text-muted-foreground text-center font-code">
            (PDF will be uploaded and order saved)
          </p>
        )}
-
-
     </div>
   );
 }
+    

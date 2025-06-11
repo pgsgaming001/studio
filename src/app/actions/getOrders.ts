@@ -6,16 +6,10 @@ import type { OrderDataMongo } from './submitOrder';
 import type { ObjectId } from 'mongodb';
 
 // Define the structure of the data returned to the client, converting ObjectId to string
-export interface OrderDisplayData extends Omit<OrderDataMongo, '_id' | 'createdAt' | 'pdfDownloadURL' | 'fileName' | 'deliveryAddress' | 'numCopies' | 'numPages' | 'paperSize' | 'printColor' | 'printSides' | 'layout' | 'totalCost' | 'status'> {
+export interface OrderDisplayData extends Omit<OrderDataMongo, '_id' | 'createdAt' | 'fileDownloadURL' | 'deliveryAddress' | 'pickupCode'> {
   id: string;
   createdAt: string; 
-  fileName: string | null;
-  numPages: string;
-  numCopies: string;
-  printColor: 'color' | 'bw';
-  paperSize: 'A4' | 'Letter' | 'Legal';
-  printSides: 'single' | 'double';
-  layout: '1up' | '2up';
+  fileDownloadURL?: string | null;
   deliveryAddress: { 
     street: string;
     city: string;
@@ -23,12 +17,8 @@ export interface OrderDisplayData extends Omit<OrderDataMongo, '_id' | 'createdA
     zip: string;
     country: string;
   };
-  totalCost: number;
-  status: string; 
-  pdfDownloadURL?: string | null;
-  userId?: string;
-  userEmail?: string;
-  userName?: string;
+  pickupCode: string;
+  // userId, userEmail, userName are already in OrderDataMongo and will be passed through
 }
 
 
@@ -49,21 +39,21 @@ export async function getOrdersFromMongoDB(
       .toArray();
 
     const displayOrders: OrderDisplayData[] = fetchedOrders.map(order => {
-      const { _id, createdAt, deliveryAddress, ...restOfOrder } = order; 
+      const { _id, createdAt, deliveryAddress, fileDownloadURL, pickupCode, ...restOfOrder } = order; 
       return {
         ...restOfOrder, 
         id: _id!.toString(), 
         createdAt: createdAt.toISOString(), 
-        deliveryAddress: { 
-          street: deliveryAddress.street,
-          city: deliveryAddress.city,
-          state: deliveryAddress.state,
-          zip: deliveryAddress.zip,
-          country: deliveryAddress.country,
+        fileDownloadURL: fileDownloadURL,
+        pickupCode: pickupCode,
+        deliveryAddress: { // Ensure deliveryAddress is correctly structured even if empty for pickup
+          street: deliveryAddress?.street || '',
+          city: deliveryAddress?.city || '',
+          state: deliveryAddress?.state || '',
+          zip: deliveryAddress?.zip || '',
+          country: deliveryAddress?.country || '',
         },
-        userId: order.userId,
-        userEmail: order.userEmail,
-        userName: order.userName,
+        // userId, userEmail, userName, deliveryMethod, pickupCenter are in restOfOrder
       };
     });
     
@@ -76,3 +66,4 @@ export async function getOrdersFromMongoDB(
     };
   }
 }
+    
