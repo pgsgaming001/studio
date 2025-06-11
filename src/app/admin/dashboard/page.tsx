@@ -15,6 +15,7 @@ import { useAuth } from "@/context/AuthContext"; // Import useAuth
 import { useRouter } from "next/navigation"; // Import useRouter
 
 const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+const ADMIN_EMAIL = 'pgsgaming001@gmail.com'; // Centralized admin email
 
 interface OrderDisplayDataInternal extends Omit<FetchedOrderData, 'status' | 'createdAt'> {
   status: OrderStatus;
@@ -40,14 +41,14 @@ export default function PrintServiceDashboardPage() {
         router.push('/'); 
         toast({ title: "Access Denied", description: "Please sign in to access the admin dashboard.", variant: "destructive" });
         return;
-      } else if (authContext.user.email !== 'pgsviews@gmail.com') { // Your admin email
+      } else if (authContext.user.email !== ADMIN_EMAIL) { 
         router.push('/');
         toast({ title: "Access Denied", description: "You are not authorized to view this page.", variant: "destructive" });
         return;
       }
     }
     // Only proceed to fetch data if admin check passes (or is still loading)
-    if (authContext.loading || (authContext.user && authContext.user.email === 'pgsviews@gmail.com')) {
+    if (authContext.loading || (authContext.user && authContext.user.email === ADMIN_EMAIL)) {
         const fetchOrders = async () => {
         setIsLoading(true);
         setError(null);
@@ -129,7 +130,7 @@ export default function PrintServiceDashboardPage() {
   };
 
   // Loading state for auth check
-  if (authContext.loading || (isLoading && authContext.user?.email === 'pgsviews@gmail.com')) {
+  if (authContext.loading || (isLoading && authContext.user?.email === ADMIN_EMAIL)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-secondary/50">
         <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
@@ -140,7 +141,7 @@ export default function PrintServiceDashboardPage() {
   
   // If not admin after loading, this component might not render fully due to redirect
   // but this is a fallback.
-  if (!authContext.user || authContext.user.email !== 'pgsviews@gmail.com') {
+  if (!authContext.user || authContext.user.email !== ADMIN_EMAIL) {
       return null; // Or a more specific "Access Denied" component if redirection fails
   }
 
@@ -295,3 +296,5 @@ export default function PrintServiceDashboardPage() {
     </div>
   );
 }
+
+    

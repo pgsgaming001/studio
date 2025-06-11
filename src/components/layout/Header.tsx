@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+const ADMIN_EMAIL = 'pgsgaming001@gmail.com'; // Centralized admin email
 
 export function Header() {
   const cartContext = useCart();
@@ -35,7 +36,7 @@ export function Header() {
     return 'U';
   };
   
-  const isAdminUser = authContext.user && authContext.user.email === 'pgsviews@gmail.com'; 
+  const isAdminUser = authContext.user && authContext.user.email === ADMIN_EMAIL; 
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -127,3 +128,5 @@ export function Header() {
     </header>
   );
 }
+
+    

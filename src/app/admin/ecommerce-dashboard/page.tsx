@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext"; // Import useAuth
 
 const VALID_ECOMM_STATUSES: EcommOrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+const ADMIN_EMAIL = 'pgsgaming001@gmail.com'; // Centralized admin email
 
 const initialEcommerceSummary = {
   totalActiveProducts: 0,
@@ -46,7 +47,7 @@ export default function EcommerceDashboardPage() {
         router.push('/'); 
         toast({ title: "Access Denied", description: "Please sign in to access the admin dashboard.", variant: "destructive" });
         return;
-      } else if (authContext.user.email !== 'pgsviews@gmail.com') { // Your admin email
+      } else if (authContext.user.email !== ADMIN_EMAIL) { 
         router.push('/');
         toast({ title: "Access Denied", description: "You are not authorized to view this page.", variant: "destructive" });
         return;
@@ -54,7 +55,7 @@ export default function EcommerceDashboardPage() {
     }
 
     // Only proceed to fetch data if admin check passes (or is still loading)
-    if (authContext.loading || (authContext.user && authContext.user.email === 'pgsviews@gmail.com')) {
+    if (authContext.loading || (authContext.user && authContext.user.email === ADMIN_EMAIL)) {
         const fetchAdminProducts = async () => {
         setIsLoadingProducts(true);
         setErrorProducts(null);
@@ -146,7 +147,7 @@ export default function EcommerceDashboardPage() {
     }
   };
 
-  if (authContext.loading || (isLoadingProducts || isLoadingOrders) && authContext.user?.email === 'pgsviews@gmail.com') {
+  if (authContext.loading || (isLoadingProducts || isLoadingOrders) && authContext.user?.email === ADMIN_EMAIL) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-secondary/50">
         <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
@@ -155,7 +156,7 @@ export default function EcommerceDashboardPage() {
     );
   }
   
-  if (!authContext.user || authContext.user.email !== 'pgsviews@gmail.com') {
+  if (!authContext.user || authContext.user.email !== ADMIN_EMAIL) {
       return null; 
   }
 
@@ -395,3 +396,5 @@ export default function EcommerceDashboardPage() {
     </div>
   );
 }
+
+    
