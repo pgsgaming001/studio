@@ -2,35 +2,32 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
-import { getAnalytics, type Analytics } from "firebase/analytics";
+import { getAnalytics, type Analytics, isSupported as isAnalyticsSupported } from "firebase/analytics"; // Added isSupported
 import { getAuth, type Auth } from "firebase/auth";
 
 // -----------------------------------------------------------------------------
 // IMPORTANT: FIREBASE PROJECT CONFIGURATION
 // -----------------------------------------------------------------------------
-// This configuration object is specific to YOUR Firebase project.
-// You can find these values in your Firebase project settings:
+// This configuration object MUST be specific to YOUR Firebase project.
+// Find these values in your Firebase project settings:
 // 1. Go to https://console.firebase.google.com/
-// 2. Select your project (e.g., "my-first-project-6eebf").
+// 2. Select your project.
 // 3. Click the Gear icon (⚙️) next to "Project Overview".
 // 4. Select "Project settings".
-// 5. Under the "General" tab, scroll down to "Your apps".
-// 6. If you have a web app registered, click on its name or look for the
-//    "SDK setup and configuration" section and select "Config".
-// 7. Copy the entire config object and paste it here, replacing the placeholders.
+// 5. Under the "General" tab, scroll to "Your apps".
+// 6. Click on your web app's name or look for "SDK setup and configuration".
+// 7. Select "Config" and copy the entire object.
 //
-// DO NOT put your Google OAuth Client ID or Client Secret directly in this object.
-// Those are configured in the Firebase Console (Authentication > Sign-in method > Google).
+// PASTE YOUR CONFIGURATION OBJECT HERE, REPLACING THE PLACEHOLDERS.
 // -----------------------------------------------------------------------------
-
 const firebaseConfig = {
-    apiKey: "YOUR_ACTUAL_API_KEY", // Replace with your Firebase Project's API Key
-    authDomain: "YOUR_ACTUAL_AUTH_DOMAIN", // e.g., my-project-id.firebaseapp.com
-    projectId: "YOUR_ACTUAL_PROJECT_ID", // e.g., my-project-id
-    storageBucket: "YOUR_ACTUAL_STORAGE_BUCKET", // e.g., my-project-id.appspot.com
-    messagingSenderId: "YOUR_ACTUAL_MESSAGING_SENDER_ID",
-    appId: "YOUR_ACTUAL_APP_ID",
-    measurementId: "YOUR_ACTUAL_MEASUREMENT_ID" // Optional, but good for Analytics
+    apiKey: "YOUR_ACTUAL_API_KEY", // <<-- REPLACE THIS
+    authDomain: "YOUR_ACTUAL_AUTH_DOMAIN", // <<-- REPLACE THIS (e.g., your-project-id.firebaseapp.com)
+    projectId: "YOUR_ACTUAL_PROJECT_ID", // <<-- REPLACE THIS (e.g., your-project-id)
+    storageBucket: "YOUR_ACTUAL_STORAGE_BUCKET", // <<-- REPLACE THIS (e.g., your-project-id.appspot.com)
+    messagingSenderId: "YOUR_ACTUAL_MESSAGING_SENDER_ID", // <<-- REPLACE THIS
+    appId: "YOUR_ACTUAL_APP_ID", // <<-- REPLACE THIS
+    measurementId: "YOUR_ACTUAL_MEASUREMENT_ID" // <<-- REPLACE THIS (Optional, for Analytics)
 };
 
 let app: FirebaseApp | null = null;
@@ -39,54 +36,67 @@ let storage: FirebaseStorage | null = null;
 let auth: Auth | null = null;
 let analytics: Analytics | undefined;
 
-// Function to check if the config is still using placeholder values
-function isConfigValid(config: typeof firebaseConfig): boolean {
-  if (!config.apiKey || config.apiKey === "YOUR_ACTUAL_API_KEY" || config.apiKey.includes("YOUR_ACTUAL")) {
-    console.error("Firebase Initialization Error: 'apiKey' in firebaseConfig is a placeholder or missing. Please update src/lib/firebase.ts with your project's actual Firebase configuration.");
-    return false;
-  }
-  if (!config.authDomain || config.authDomain === "YOUR_ACTUAL_AUTH_DOMAIN" || config.authDomain.includes("YOUR_ACTUAL")) {
-    console.error("Firebase Initialization Error: 'authDomain' in firebaseConfig is a placeholder or missing. Please update src/lib/firebase.ts.");
-    return false;
-  }
-  if (!config.projectId || config.projectId === "YOUR_ACTUAL_PROJECT_ID" || config.projectId.includes("YOUR_ACTUAL")) {
-    console.error("Firebase Initialization Error: 'projectId' in firebaseConfig is a placeholder or missing. Please update src/lib/firebase.ts.");
-    return false;
-  }
-  // Add checks for other critical fields if necessary (e.g., storageBucket if used extensively)
-  return true;
+function isConfigStillPlaceholder(configValue: string, placeholderPrefix: string): boolean {
+  return !configValue || configValue.startsWith(placeholderPrefix) || configValue.includes("YOUR_ACTUAL");
 }
 
+function validateFirebaseConfig(config: typeof firebaseConfig): boolean {
+  let isValid = true;
+  if (isConfigStillPlaceholder(config.apiKey, "YOUR_ACTUAL_API_KEY")) {
+    console.error("Firebase Config Error (src/lib/firebase.ts): 'apiKey' is a placeholder or missing. Update with your project's actual Firebase configuration.");
+    isValid = false;
+  }
+  if (isConfigStillPlaceholder(config.authDomain, "YOUR_ACTUAL_AUTH_DOMAIN")) {
+    console.error("Firebase Config Error (src/lib/firebase.ts): 'authDomain' is a placeholder or missing. Update with your project's actual Firebase configuration.");
+    isValid = false;
+  }
+  if (isConfigStillPlaceholder(config.projectId, "YOUR_ACTUAL_PROJECT_ID")) {
+    console.error("Firebase Config Error (src/lib/firebase.ts): 'projectId' is a placeholder or missing. Update with your project's actual Firebase configuration.");
+    isValid = false;
+  }
+  // Add more checks if other fields are critical for your app's startup (e.g., storageBucket)
+   if (isConfigStillPlaceholder(config.storageBucket, "YOUR_ACTUAL_STORAGE_BUCKET")) {
+    console.warn("Firebase Config Warning (src/lib/firebase.ts): 'storageBucket' is a placeholder. This might be an issue if you use Firebase Storage.");
+    // Not setting isValid to false for this one as it might not be used by all features immediately
+  }
+
+  if (!isValid) {
+    console.error("CRITICAL: Firebase configuration in src/lib/firebase.ts contains placeholder values or is incomplete. Firebase services will NOT work correctly. Please replace 'YOUR_ACTUAL_...' values with your project's credentials from the Firebase console.");
+  }
+  return isValid;
+}
+
+console.log("Firebase module (src/lib/firebase.ts) loading...");
+
 if (!getApps().length) {
-  if (isConfigValid(firebaseConfig)) {
+  console.log("No Firebase apps initialized yet. Validating config...");
+  if (validateFirebaseConfig(firebaseConfig)) {
     try {
       app = initializeApp(firebaseConfig);
-      console.log("Firebase app initialized successfully for project:", firebaseConfig.projectId);
+      console.log("Firebase app initialized successfully. Project ID:", firebaseConfig.projectId);
     } catch (error) {
-      console.error("Firebase Initialization Error: Failed to initialize Firebase app. Check your firebaseConfig object in src/lib/firebase.ts and ensure all values are correct for your project.", error);
+      console.error("Firebase Initialization Error (initializeApp):", error);
+      console.error("Ensure firebaseConfig object in src/lib/firebase.ts is correct for your project:", firebaseConfig.projectId);
       app = null;
     }
   } else {
-    console.error("Firebase Initialization Aborted: firebaseConfig in src/lib/firebase.ts is invalid or contains placeholders. Firebase services will not be available.");
+    console.error("Firebase Initialization Aborted: firebaseConfig in src/lib/firebase.ts is invalid. Firebase services will be unavailable.");
     app = null;
   }
 } else {
   app = getApp();
-  if (isConfigValid(firebaseConfig)) {
-    console.log("Firebase app already initialized, using existing instance for project:", app.options.projectId);
-     // Verify if the existing app's project ID matches the current config, in case of HMR issues.
-    if (app.options.projectId !== firebaseConfig.projectId) {
-        console.warn(`Firebase Mismatch: An app for project '${app.options.projectId}' was already initialized, but current firebaseConfig is for '${firebaseConfig.projectId}'. This might happen with hot-reloading. Consider a page refresh if issues persist.`);
-    }
-  } else {
-     console.warn("Firebase app was already initialized, but current firebaseConfig in src/lib/firebase.ts is invalid. This might lead to unexpected behavior.");
+  console.log("Firebase app already initialized. Using existing instance. Project ID from existing app:", app.options.projectId);
+  if (app.options.projectId !== firebaseConfig.projectId && validateFirebaseConfig(firebaseConfig)) {
+     console.warn(`Firebase Project ID Mismatch: Existing app's projectId ('${app.options.projectId}') does not match firebaseConfig.projectId ('${firebaseConfig.projectId}'). This can happen with HMR. Current config is otherwise valid.`);
+  } else if (!validateFirebaseConfig(firebaseConfig)) {
+     console.warn("Firebase app was already initialized, but current firebaseConfig in src/lib/firebase.ts is invalid. This may cause issues.");
   }
 }
 
 if (app) {
   try {
     db = getFirestore(app);
-    // console.log("Firestore initialized.");
+    console.log("Firestore initialized.");
   } catch (error) {
     console.error("Error initializing Firestore:", error);
     db = null;
@@ -94,7 +104,7 @@ if (app) {
 
   try {
     storage = getStorage(app);
-    // console.log("Firebase Storage initialized.");
+    console.log("Firebase Storage initialized.");
   } catch (error) {
     console.error("Error initializing Firebase Storage:", error);
     storage = null;
@@ -102,32 +112,38 @@ if (app) {
 
   try {
     auth = getAuth(app);
-    // console.log("Firebase Auth initialized.");
+    console.log("Firebase Auth initialized.");
   } catch (error) {
     console.error("Error initializing Firebase Auth:", error);
     auth = null;
   }
 
   if (typeof window !== 'undefined') {
-    if (firebaseConfig.measurementId && firebaseConfig.measurementId !== "YOUR_ACTUAL_MEASUREMENT_ID" && !firebaseConfig.measurementId.includes("YOUR_ACTUAL")) {
-      try {
-        analytics = getAnalytics(app);
-        // console.log("Firebase Analytics initialized successfully.");
-      } catch (error) {
-        console.error("Error initializing Firebase Analytics:", error);
+    isAnalyticsSupported().then(supported => {
+      if (supported) {
+        if (firebaseConfig.measurementId && !isConfigStillPlaceholder(firebaseConfig.measurementId, "YOUR_ACTUAL_MEASUREMENT_ID")) {
+          try {
+            analytics = getAnalytics(app);
+            console.log("Firebase Analytics initialized.");
+          } catch (error) {
+            console.error("Error initializing Firebase Analytics:", error);
+            analytics = undefined;
+          }
+        } else if (firebaseConfig.measurementId && isConfigStillPlaceholder(firebaseConfig.measurementId, "YOUR_ACTUAL_MEASUREMENT_ID")) {
+            console.warn("Firebase Analytics not initialized: 'measurementId' in firebaseConfig (src/lib/firebase.ts) is a placeholder. Update if you intend to use Analytics.");
+            analytics = undefined;
+        } else {
+            console.info("Firebase Analytics not initialized: 'measurementId' is not provided or is invalid in firebaseConfig (src/lib/firebase.ts).");
+            analytics = undefined;
+        }
+      } else {
+        console.info("Firebase Analytics is not supported in this environment.");
         analytics = undefined;
       }
-    } else if (firebaseConfig.measurementId && (firebaseConfig.measurementId === "YOUR_ACTUAL_MEASUREMENT_ID" || firebaseConfig.measurementId.includes("YOUR_ACTUAL"))) {
-        // console.warn("Firebase Analytics not initialized: 'measurementId' in firebaseConfig is a placeholder. Update src/lib/firebase.ts if you intend to use Analytics.");
-        analytics = undefined;
-    } else {
-        // console.info("Firebase Analytics not initialized: 'measurementId' is not provided in firebaseConfig.");
-        analytics = undefined;
-    }
+    });
   }
 } else {
-  console.error("Firebase app failed to initialize or uses placeholder config. Firestore, Storage, Auth, and Analytics will not be available. Please check src/lib/firebase.ts.");
-  // Ensure all exports are null if app is null
+  console.error("Firebase app is null. Firestore, Storage, Auth, and Analytics will not be available. Review previous errors in src/lib/firebase.ts.");
   db = null;
   storage = null;
   auth = null;

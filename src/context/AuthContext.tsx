@@ -9,7 +9,7 @@ import {
   onAuthStateChanged, 
   User as FirebaseUser 
 } from 'firebase/auth';
-import { auth as firebaseAuth } from '@/lib/firebase'; // Assuming auth is exported from firebase.ts
+import { auth as firebaseAuth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -29,18 +29,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!firebaseAuth) {
-      console.error("Firebase Auth is not initialized in AuthContext. Auth context cannot function.");
+      console.error("AuthContext FATAL ERROR: Firebase Auth is not initialized (firebaseAuth is null in AuthContext). Authentication cannot function. Check src/lib/firebase.ts and its console logs.");
       setLoading(false);
-      // It's important that firebaseAuth itself is correctly initialized in firebase.ts
-      // The toast here might be redundant if firebase.ts already logs/handles its init error.
+      toast({
+        title: "Critical Auth Error",
+        description: "Firebase Auth service not initialized. App may not function correctly.",
+        variant: "destructive",
+        duration: Infinity, // Keep this critical error visible
+      });
       return;
     }
+    console.log("AuthContext: firebaseAuth instance is available.");
 
     const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
+      console.log("AuthContext: onAuthStateChanged triggered. currentUser:", currentUser ? currentUser.uid : null);
       setUser(currentUser);
       setLoading(false);
     }, (error) => {
-      console.error("Error in onAuthStateChanged listener:", error);
+      console.error("AuthContext: Error in onAuthStateChanged listener:", error);
       setLoading(false);
       toast({
         title: "Authentication State Error",
@@ -49,27 +55,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log("AuthContext: Unsubscribing from onAuthStateChanged.");
+      unsubscribe();
+    };
   }, [toast]);
 
   const signInWithGoogle = async () => {
     if (!firebaseAuth) {
       toast({ title: "Auth Service Error", description: "Authentication service not available. Check Firebase setup.", variant: "destructive" });
       console.error("signInWithGoogle: firebaseAuth is not initialized.");
-      setLoading(false); // Ensure loading is false if we can't proceed
+      setLoading(false);
       return;
     }
     setLoading(true);
     const provider = new GoogleAuthProvider();
+    
+    // Log the current origin
+    const currentOrigin = typeof window !== "undefined" ? window.location.origin : "Unknown (not in browser)";
+    console.log("AuthContext: Attempting Google Sign-In. Current window.location.origin:", currentOrigin);
+    toast({ title: "Attempting Sign-In...", description: `Requesting from origin: ${currentOrigin}. Ensure this is in Google Cloud's 'Authorized JavaScript origins'.` });
+
+
     try {
       const result = await signInWithPopup(firebaseAuth, provider);
-      setUser(result.user); // State will be updated by onAuthStateChanged, but this is good for immediate feedback
+      // setUser(result.user); // onAuthStateChanged will handle this
+      console.log("AuthContext: signInWithPopup successful. User:", result.user.uid);
       toast({
         title: "Signed In Successfully!",
         description: `Welcome, ${result.user.displayName || result.user.email}!`,
       });
     } catch (error: any) {
-      console.error("Google Sign-In Error:", error);
+      console.error("AuthContext: Google Sign-In Error:", error);
       let errorMessage = "Failed to sign in with Google. Please try again.";
       if (error.code) {
         switch (error.code) {
@@ -84,17 +101,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             errorMessage = "Network error during sign-in. Please check your connection.";
             break;
           case 'auth/unauthorized-domain':
-            errorMessage = "This domain is not authorized for OAuth operations. Check your Firebase and Google Cloud console settings for Authorized Domains.";
+            errorMessage = `This domain (${currentOrigin}) is not authorized for OAuth operations. Check 'Authorized JavaScript origins' in your Google Cloud Console for the OAuth client ID.`;
             break;
-          // Add more specific Firebase error codes as needed
           default:
-            errorMessage = error.message || errorMessage;
+            errorMessage = `Error (${error.code}): ${error.message}` || errorMessage;
         }
       }
       toast({
         title: "Sign-In Failed",
         description: errorMessage,
         variant: "destructive",
+        duration: 10000, // Longer duration for errors
       });
     } finally {
       setLoading(false);
@@ -111,13 +128,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       await signOut(firebaseAuth);
-      setUser(null); // State will be updated by onAuthStateChanged
+      // setUser(null); // onAuthStateChanged will handle this
+      console.log("AuthContext: signOutUser successful.");
       toast({
         title: "Signed Out",
         description: "You have been successfully signed out.",
       });
     } catch (error: any) {
-      console.error("Sign-Out Error:", error);
+      console.error("AuthContext: Sign-Out Error:", error);
       toast({
         title: "Sign-Out Failed",
         description: error.message || "An error occurred while signing out.",
@@ -128,15 +146,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
-  // This addresses the case where firebaseAuth might not be initialized from src/lib/firebase.ts
   if (loading && !firebaseAuth && typeof window !== 'undefined') { 
-    // Only show this specific loader/message if firebaseAuth is truly missing after initial load attempt.
-    // The useEffect will also handle the loading state if firebaseAuth is available.
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-secondary/50">
         <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
-        <p className="text-xl text-muted-foreground">Initializing Authentication...</p>
-        <p className="text-sm text-destructive mt-2">If this persists, check Firebase configuration.</p>
+        <p className="text-xl text-muted-foreground">Initializing Authentication System...</p>
+        <p className="text-sm text-destructive mt-2">If this persists, check Firebase configuration in src/lib/firebase.ts and console logs.</p>
       </div>
     );
   }
