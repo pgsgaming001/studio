@@ -47,11 +47,15 @@ export default function CartPage() {
 
 
   const handleProceedToCheckout = () => {
-    toast({
-      title: "Checkout Initiated (Placeholder)",
-      description: "This is where you'd be redirected to the checkout process.",
-    });
-    // router.push('/checkout'); // Example for later, if a checkout page is created
+    if (cartItems.length > 0) {
+      router.push('/checkout'); 
+    } else {
+      toast({
+        title: "Your cart is empty",
+        description: "Please add items to your cart before proceeding to checkout.",
+        variant: "destructive"
+      });
+    }
   };
 
   if (cartItems.length === 0) {
@@ -121,7 +125,7 @@ export default function CartPage() {
                       type="number"
                       value={item.quantity.toString()}
                       onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                      onBlur={(e) => { // Ensure valid number on blur
+                      onBlur={(e) => { 
                          const val = parseInt(e.target.value);
                          if (isNaN(val) || val < 1) updateQuantity(item.id, 1);
                       }}
