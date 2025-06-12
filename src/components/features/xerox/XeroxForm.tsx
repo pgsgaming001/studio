@@ -13,14 +13,12 @@ import { OrderSummary } from "./OrderSummary";
 import { PrintPreview } from "./PrintPreview";
 import { useToast } from "@/hooks/use-toast";
 import { PDFDocument } from 'pdf-lib';
-// submitOrderToMongoDB is now called from the payment page for home delivery
-// For pickup, it's called directly from XeroxForm.
 import { submitOrderToMongoDB, type OrderFormPayload } from '@/app/actions/submitOrder'; 
 import { useAuth } from "@/context/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Send, CreditCard, ArrowRight, ArrowLeft, PackageCheck } from "lucide-react";
+import { Loader2, Send, CreditCard, ArrowRight, ArrowLeft, PackageCheck, UserCheck } from "lucide-react";
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
 export type SubmissionStatus = 'idle' | 'preparing' | 'uploading' | 'processing' | 'success' | 'error';
@@ -28,7 +26,7 @@ type DeliveryMethod = 'pickup' | 'home_delivery';
 type XeroxFormStep = 'upload_settings' | 'delivery_method' | 'delivery_details' | 'summary_payment';
 
 const PICKUP_CENTERS = ["Tenkasi Main Office", "Madurai Branch", "Chennai Hub"];
-const DELIVERY_CHARGE = 40; // Example delivery charge in rupees (or your currency)
+const DELIVERY_CHARGE = 40; 
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024;
 
 function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
@@ -76,6 +74,16 @@ export default function XeroxForm() {
   const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>('idle');
 
   const handleFileChange = async (selectedFile: File | null) => {
+    if (!authContext.user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in with Google to upload a file.",
+        variant: "destructive",
+      });
+      setFile(null); setFileName(null); setFileDataUri(null); setPageCountStatus('idle');
+      return;
+    }
+
     setFile(selectedFile);
     setFileName(selectedFile ? selectedFile.name : null);
     setFileDataUri(null); 
@@ -136,12 +144,14 @@ export default function XeroxForm() {
   }, [printCost, deliveryMethod]);
 
   const validateStep1 = () => {
+    if (!authContext.user) return false;
     const numP = parseInt(numPagesStr);
     const isFileValid = !!file && !!fileDataUri; 
     return isFileValid && !isNaN(numP) && numP > 0 && pageCountStatus !== 'processing';
   };
 
   const validateStep3 = () => {
+    if (!authContext.user) return false;
     if (deliveryMethod === 'pickup') return !!selectedPickupCenter;
     if (deliveryMethod === 'home_delivery') {
       return homeDeliveryAddress.street.trim() !== "" &&
@@ -154,9 +164,16 @@ export default function XeroxForm() {
   };
 
   const handleNextStep = () => {
+    if (!authContext.user) {
+      toast({ title: "Authentication Required", description: "Please sign in to proceed.", variant: "destructive" });
+      return;
+    }
     if (currentStep === 'upload_settings' && validateStep1()) setCurrentStep('delivery_method');
     else if (currentStep === 'delivery_method') setCurrentStep('delivery_details');
     else if (currentStep === 'delivery_details' && validateStep3()) setCurrentStep('summary_payment');
+    else if (currentStep === 'upload_settings' && !validateStep1()) {
+       toast({ title: "Incomplete Information", description: "Please upload a valid PDF and ensure page count is set.", variant: "destructive" });
+    }
   };
 
   const handlePrevStep = () => {
@@ -166,16 +183,23 @@ export default function XeroxForm() {
   };
 
   const handlePlaceOrderOrProceedToPayment = async () => {
+    if (!authContext.user) {
+      toast({ title: "Authentication Required", description: "Please sign in to place an order.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
     if (!validateStep1() || !validateStep3()) {
         toast({ title: "Incomplete Information", description: "Please complete all required fields.", variant: "destructive" });
+        setIsSubmitting(false);
         return;
     }
     setIsSubmitting(true);
-    const user = authContext.user;
+    const user = authContext.user; // Ensured user exists by this point
 
     const commonPayload = {
-      fileName,
-      fileDataUri, 
+      fileName, // This can be null if not file is selected, but validateStep1 should catch it
+      fileDataUri, // This can be null, validateStep1 should catch it
       numPages: numPagesStr,
       numCopies: numCopiesStr,
       printColor,
@@ -183,9 +207,9 @@ export default function XeroxForm() {
       printSides,
       layout,
       totalCost,
-      userId: user ? user.uid : undefined,
-      userEmail: user && user.email ? user.email : undefined,
-      userName: user && user.displayName ? user.displayName : undefined,
+      userId: user.uid,
+      userEmail: user.email || "N/A", // Provide a fallback or ensure email exists
+      userName: user.displayName || "Anonymous User", // Provide a fallback
     };
 
     if (deliveryMethod === 'pickup') {
@@ -194,7 +218,7 @@ export default function XeroxForm() {
         ...commonPayload,
         deliveryMethod: 'pickup',
         pickupCenter: selectedPickupCenter,
-        deliveryAddress: { street: '', city: '', state: '', zip: '', country: '' }, // Default empty for pickup
+        deliveryAddress: { street: '', city: '', state: '', zip: '', country: '' }, 
       };
       try {
         const result = await submitOrderToMongoDB(orderPayload);
@@ -227,11 +251,14 @@ export default function XeroxForm() {
         state: homeDeliveryAddress.state,
         zip: homeDeliveryAddress.zip,
         country: homeDeliveryAddress.country,
-        ...(user && { userId: user.uid, userEmail: user.email || '', userName: user.displayName || '' }),
+        userId: user.uid, 
+        userEmail: user.email || '', 
+        userName: user.displayName || '',
       }).toString();
       
-      if (fileDataUri) sessionStorage.setItem('pendingOrderFileDataUri', fileDataUri);
-      else {
+      if (fileDataUri) {
+        sessionStorage.setItem('pendingOrderFileDataUri', fileDataUri);
+      } else {
         toast({title: "File Error", description: "File data is missing. Cannot proceed to payment.", variant: "destructive"});
         setIsSubmitting(false);
         return;
@@ -256,14 +283,22 @@ export default function XeroxForm() {
        <Card className="shadow-xl rounded-xl overflow-hidden">
         <CardHeader className="bg-primary/5">
           <CardTitle className="font-headline text-2xl text-primary">{getStepTitle()}</CardTitle>
+           {!authContext.user && currentStep === 'upload_settings' && (
+            <CardDescription className="text-destructive font-medium">
+                Please sign in with Google to upload files and place an order.
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent className="p-6">
           {currentStep === 'upload_settings' && (
             <div className="grid md:grid-cols-2 gap-6">
-              {/* Column 1: Upload and Settings */}
               <div className="space-y-6">
-                <FileUpload onFileChange={handleFileChange} fileName={fileName} />
-                {file && ( 
+                <FileUpload 
+                    onFileChange={handleFileChange} 
+                    fileName={fileName} 
+                    isAuthenticated={!!authContext.user} 
+                />
+                {file && authContext.user && ( 
                   <PrintSettings
                     numPages={numPagesStr} setNumPages={setNumPagesStr}
                     pageCountStatus={pageCountStatus}
@@ -275,9 +310,8 @@ export default function XeroxForm() {
                   />
                 )}
               </div>
-              {/* Column 2: Preview */}
               <div>
-                {file && ( 
+                {file && authContext.user && ( 
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-xl font-semibold text-accent">
@@ -359,17 +393,26 @@ export default function XeroxForm() {
                   </p>
                 </div>
               )}
-
-              <Button 
-                onClick={handlePlaceOrderOrProceedToPayment} 
-                disabled={isSubmitting}
-                className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-base py-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
-              >
-                {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 
-                 (deliveryMethod === 'pickup' ? <PackageCheck className="mr-2 h-5 w-5" /> : <CreditCard className="mr-2 h-5 w-5" />)
-                }
-                {isSubmitting ? 'Processing...' : (deliveryMethod === 'pickup' ? 'Place Pickup Order' : 'Proceed to Payment')}
-              </Button>
+                {authContext.user ? (
+                <Button 
+                    onClick={handlePlaceOrderOrProceedToPayment} 
+                    disabled={isSubmitting || !authContext.user}
+                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-base py-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
+                >
+                    {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 
+                    (deliveryMethod === 'pickup' ? <PackageCheck className="mr-2 h-5 w-5" /> : <CreditCard className="mr-2 h-5 w-5" />)
+                    }
+                    {isSubmitting ? 'Processing...' : (deliveryMethod === 'pickup' ? 'Place Pickup Order' : 'Proceed to Payment')}
+                </Button>
+                ) : (
+                 <Button 
+                    disabled={true}
+                    className="w-full text-base py-6 rounded-lg shadow-md"
+                    variant="destructive"
+                >
+                    <UserCheck className="mr-2 h-5 w-5" /> Please Sign In to Place Order
+                </Button>
+                )}
                {submissionStatus === 'success' && deliveryMethod === 'pickup' && (
                   <p className="text-sm text-green-600 text-center mt-2">Pickup order placed successfully!</p>
                 )}
@@ -391,7 +434,7 @@ export default function XeroxForm() {
         {currentStep !== 'summary_payment' && (
           <Button 
             onClick={handleNextStep} 
-            disabled={isSubmitting || (currentStep === 'upload_settings' && !validateStep1()) || (currentStep === 'delivery_details' && !validateStep3())}
+            disabled={isSubmitting || (currentStep === 'upload_settings' && (!authContext.user || !validateStep1())) || (currentStep === 'delivery_details' && (!authContext.user || !validateStep3()))}
             className="ml-auto"
           >
             Next <ArrowRight className="ml-2 h-4 w-4" />
@@ -401,4 +444,3 @@ export default function XeroxForm() {
     </div>
   );
 }
-

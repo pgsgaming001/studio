@@ -14,6 +14,7 @@ const generatePickupCode = (): string => {
 };
 
 // Interface for data to be stored in MongoDB
+// userId, userEmail, userName are now NON-OPTIONAL
 export interface OrderDataMongo {
   _id?: ObjectId;
   fileName: string | null;
@@ -25,29 +26,35 @@ export interface OrderDataMongo {
   layout: '1up' | '2up';
   
   deliveryMethod: 'pickup' | 'home_delivery';
-  deliveryAddress: Address; // Used for home_delivery, can be minimal for pickup
-  pickupCenter?: string; // Only if deliveryMethod is 'pickup'
-  pickupCode: string; // Always generated
+  deliveryAddress: Address; 
+  pickupCenter?: string; 
+  pickupCode: string; 
 
   totalCost: number;
-  status: string; // e.g., 'pending', 'processing', 'awaiting_pickup', 'shipped', 'delivered'
+  status: string; 
   createdAt: Date;
-  fileDownloadURL?: string | null; // Renamed from pdfDownloadURL
+  fileDownloadURL?: string | null; 
   
-  userId?: string;
-  userEmail?: string;
-  userName?: string;
+  userId: string; // Now required
+  userEmail: string; // Now required
+  userName: string; // Now required
 }
 
 // This is the type for data coming from the form/payment page
+// userId, userEmail, userName are now NON-OPTIONAL
 export type OrderFormPayload = Omit<OrderDataMongo, 'status' | 'createdAt' | '_id' | 'pickupCode'> & {
   fileDataUri?: string | null;
-  // pickupCode is generated server-side
 };
 
 
 export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{success: boolean, orderId?: string, pickupCode?: string, error?: string}> {
-  console.log("submitOrderToMongoDB called with order payload:", { ...order, fileDataUri: order.fileDataUri ? 'PRESENT' : 'ABSENT', userId: order.userId });
+  console.log("submitOrderToMongoDB called with order payload:", { ...order, fileDataUri: order.fileDataUri ? 'PRESENT' : 'ABSENT' });
+
+  // Backend validation for user authentication details
+  if (!order.userId || !order.userEmail || !order.userName) {
+    console.error("User authentication details (userId, userEmail, userName) are missing from the order payload.");
+    return { success: false, error: "User authentication details are required to submit an order. Please sign in." };
+  }
 
   if (!storage) {
     console.error("Firebase Storage client is not initialized. Check src/lib/firebase.ts configuration.");
@@ -74,8 +81,13 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
     const { fileDataUri, fileName: originalFileName, ...restOfOrderPayload } = order;
 
     if (fileDataUri && originalFileName) {
+      // Ensure fileDataUri is a string and starts with 'data:'
+      if (typeof fileDataUri !== 'string' || !fileDataUri.startsWith('data:')) {
+        console.error("Invalid fileDataUri format.");
+        return { success: false, error: "Invalid file data format." };
+      }
       const sanitizedFileName = originalFileName.replace(/\s+/g, '_');
-      const storagePath = `user_documents/${order.userId || tempOrderIdForStorage}/${Date.now()}_${sanitizedFileName}`;
+      const storagePath = `user_documents/${order.userId}/${Date.now()}_${sanitizedFileName}`;
       
       console.log(`Attempting to upload file to Firebase Storage at path: ${storagePath}...`);
       const storageRef = ref(storage, storagePath);
@@ -85,18 +97,26 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
       console.log("Attempting to get download URL for the uploaded file...");
       fileDownloadURL = await getDownloadURL(uploadResult.ref);
       console.log("Successfully retrieved download URL:", fileDownloadURL);
+    } else if (!originalFileName && fileDataUri) {
+        // This case might occur if fileName was somehow lost but data URI exists
+        console.warn("fileDataUri present but originalFileName is null/empty. File may not be processed correctly by name.");
+        // Proceeding but this is a potential issue to investigate if it happens
+    } else if (originalFileName && !fileDataUri) {
+        console.error("fileName present but fileDataUri is missing. Cannot upload file.");
+        return { success: false, error: "File data is missing, cannot upload."};
     }
+    // If both are null/empty, it means no file was uploaded, which is fine for some order types not handled here.
+    // For this print service, a file is expected. This should be caught by frontend logic.
     
     const newPickupCode = generatePickupCode();
 
     const orderDocument: Omit<OrderDataMongo, '_id'> = {
-      ...restOfOrderPayload,
+      ...restOfOrderPayload, // This now includes the required userId, userEmail, userName
       fileName: originalFileName,
       status: 'pending', 
       createdAt: new Date(),
       fileDownloadURL: fileDownloadURL,
       pickupCode: newPickupCode,
-      // Ensure deliveryAddress is empty/default if not home delivery, or handle in form
       deliveryAddress: order.deliveryMethod === 'home_delivery' ? order.deliveryAddress : { street: '', city: '', state: '', zip: '', country: ''},
       pickupCenter: order.deliveryMethod === 'pickup' ? order.pickupCenter : undefined,
     };
@@ -134,4 +154,3 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
     return { success: false, error: errorMessage };
   }
 }
-    
