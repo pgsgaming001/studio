@@ -1,81 +1,96 @@
 
 import { MongoClient, type Db } from 'mongodb';
 
-const MONGODB_URI = 'mongodb+srv://pgsgaming001:pgsgaming@cluster0.4uvwyr6.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
-const DB_NAME = 'myFirstProjectDB';
-
-if (!MONGODB_URI) {
-  const detailedErrorMessage = `
-CRITICAL CONFIGURATION ERROR:
-The MONGODB_URI environment variable is not defined.
-This application cannot connect to MongoDB without it.
-
-To resolve this:
-1. Ensure you have a MongoDB instance (e.g., MongoDB Atlas free tier, or a local instance).
-2. Create a file named '.env.local' in the ROOT directory of your project (the same level as package.json).
-3. Add the following lines to your .env.local file, replacing the placeholder values with your actual MongoDB connection string and desired database name:
-
-   MONGODB_URI="your_mongodb_connection_string_here"
-   DB_NAME="your_preferred_database_name"
-
-   Example for MONGODB_URI (replace with your actual string):
-   MONGODB_URI="mongodb+srv://<username>:<password>@<your-cluster-address>/<your-db-name>?retryWrites=true&w=majority"
-   
-   Example for DB_NAME:
-   DB_NAME="myFirstProjectDB"
-
-4. IMPORTANT: After creating or modifying the .env.local file, you MUST STOP and RESTART your Next.js development server for the changes to be loaded.
-
-If you are deploying this application, these environment variables must be set in your hosting provider's environment settings.
-`;
-  console.error(detailedErrorMessage); // Log to server console for clarity
-  throw new Error(detailedErrorMessage);
-}
+// MONGODB_URI and DB_NAME will be accessed when connectToDatabase is called
 
 let cachedClient: MongoClient | null = null;
 let cachedDb: Db | null = null;
 
 export async function connectToDatabase(): Promise<{ client: MongoClient, db: Db }> {
+  const MONGODB_URI = process.env.MONGODB_URI;
+  const DB_NAME = process.env.DB_NAME || 'myFirstProjectDB';
+
+  if (!MONGODB_URI) {
+    const detailedErrorMessage = `
+CRITICAL CONFIGURATION ERROR:
+The MONGODB_URI environment variable is not defined.
+This application cannot connect to MongoDB without it.
+
+To resolve this:
+1. For local development:
+   - Ensure you have a MongoDB instance.
+   - Create a file named '.env.local' in the ROOT directory of your project.
+   - Add: MONGODB_URI="your_mongodb_connection_string_here"
+   - Optionally add: DB_NAME="your_preferred_database_name" (defaults to ${DB_NAME} if not set)
+   - Example MONGODB_URI: "mongodb+srv://<username>:<password>@<your-cluster-address>/<your-db-name>?retryWrites=true&w=majority"
+   - RESTART your Next.js development server after changes.
+
+2. For deployment (e.g., on Railway):
+   - Set MONGODB_URI as an environment variable in your hosting provider's settings.
+   - Optionally set DB_NAME as an environment variable.
+
+This application will not function correctly until MONGODB_URI is properly configured.
+`;
+    console.error(detailedErrorMessage);
+    throw new Error("MONGODB_URI environment variable is not set. Refer to console for details.");
+  }
+
   if (cachedClient && cachedDb) {
-    try {
-      // Verify connection by pinging the admin database
-      await cachedClient.db(DB_NAME).command({ ping: 1 });
-      // console.log("Using cached MongoDB connection.");
-      return { client: cachedClient, db: cachedDb };
-    } catch (e) {
-      // console.warn("Cached MongoDB connection lost, attempting to reconnect.", e);
-      // Connection was lost, clear cache and reconnect
-      cachedClient = null;
-      cachedDb = null;
+    // Ensure the cachedDb is for the correct DB_NAME if DB_NAME could vary dynamically,
+    // though typically it's fixed per MONGODB_URI.
+    // For this app structure, if client is cached, the db associated with it is also assumed correct.
+    if (cachedDb.databaseName === DB_NAME) {
+        try {
+            await cachedClient.db(DB_NAME).command({ ping: 1 });
+            console.log("Using cached MongoDB connection.");
+            return { client: cachedClient, db: cachedDb };
+        } catch (e) {
+            console.warn("Cached MongoDB connection failed ping, attempting to reconnect.", e);
+            // Invalidate cache if ping fails
+            await cachedClient.close().catch(closeError => console.error("Error closing stale cached client:", closeError));
+            cachedClient = null;
+            cachedDb = null;
+        }
+    } else {
+        console.warn(`Cached DB name "${cachedDb.databaseName}" does not match requested DB_NAME "${DB_NAME}". Forcing reconnect.`);
+        await cachedClient.close().catch(closeError => console.error("Error closing client due to DB_NAME mismatch:", closeError));
+        cachedClient = null;
+        cachedDb = null;
     }
   }
 
-  // console.log("Attempting to establish new MongoDB connection...");
-  const client = new MongoClient(MONGODB_URI!); // MONGODB_URI is guaranteed to be defined here due to the check above
+  console.log(`Attempting to connect to MongoDB. URI: [${MONGODB_URI.substring(0,20)}...], DB: ${DB_NAME}`);
+  const client = new MongoClient(MONGODB_URI); 
   
   try {
     await client.connect();
     const db = client.db(DB_NAME);
-    // console.log(`Successfully connected to MongoDB database: ${DB_NAME}`);
     
     cachedClient = client;
     cachedDb = db;
     
+    console.log(`Successfully connected to MongoDB. Database: ${DB_NAME}`);
     return { client, db };
   } catch (error) {
-    console.error("Failed to connect to MongoDB:", error);
-    // Attempt to close client if connection failed partway
-    await client.close().catch(closeError => console.error("Failed to close MongoDB client after connection error:", closeError));
-    throw error; // Re-throw the connection error to be handled by the caller
+    console.error("Failed to establish a new connection to MongoDB:", error);
+    // client.close() might not be safe if client.connect() failed partway.
+    // MongoClient handles its own state on connect failure.
+    throw error; 
   }
 }
 
-// Optional: Function to explicitly close the connection if needed (e.g., in serverless environments or tests)
 export async function closeDatabaseConnection() {
   if (cachedClient) {
-    await cachedClient.close();
-    cachedClient = null;
-    cachedDb = null;
-    // console.log("MongoDB connection closed.");
+    try {
+        await cachedClient.close();
+        console.log("MongoDB connection closed successfully.");
+    } catch (error) {
+        console.error("Error closing MongoDB connection:", error);
+    } finally {
+        cachedClient = null;
+        cachedDb = null;
+    }
+  } else {
+    console.log("No active MongoDB connection to close.");
   }
 }

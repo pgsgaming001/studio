@@ -2,32 +2,24 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
-import { getAnalytics, type Analytics, isSupported as isAnalyticsSupported } from "firebase/analytics"; // Added isSupported
+import { getAnalytics, type Analytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
 import { getAuth, type Auth } from "firebase/auth";
 
 // -----------------------------------------------------------------------------
-// IMPORTANT: FIREBASE PROJECT CONFIGURATION
+// Firebase Project Configuration from Environment Variables
 // -----------------------------------------------------------------------------
-// This configuration object MUST be specific to YOUR Firebase project.
-// Find these values in your Firebase project settings:
-// 1. Go to https://console.firebase.google.com/
-// 2. Select your project.
-// 3. Click the Gear icon (⚙️) next to "Project Overview".
-// 4. Select "Project settings".
-// 5. Under the "General" tab, scroll to "Your apps".
-// 6. Click on your web app's name or look for "SDK setup and configuration".
-// 7. Select "Config" and copy the entire object.
-//
-// PASTE YOUR CONFIGURATION OBJECT HERE, REPLACING THE PLACEHOLDERS.
+// These values MUST be set in your environment (e.g., .env.local for local development,
+// or Railway environment variable settings for deployment).
+// For client-side access in Next.js, they must be prefixed with NEXT_PUBLIC_.
 // -----------------------------------------------------------------------------
 const firebaseConfig = {
-  apiKey: "AIzaSyDtbjxfeH1EJJpqIv3ZiIjoCCDSjRzmCZk",
-  authDomain: "my-first-project-6eebf.firebaseapp.com",
-  projectId: "my-first-project-6eebf",
-  storageBucket: "my-first-project-6eebf.appspot.com",
-  messagingSenderId: "1010692245718",
-  appId: "1:1010692245718:web:2906c0523917847dc52177",
-  measurementId: "G-84V7PD58P5"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID // Optional
 };
 
 let app: FirebaseApp | null = null;
@@ -36,32 +28,38 @@ let storage: FirebaseStorage | null = null;
 let auth: Auth | null = null;
 let analytics: Analytics | undefined;
 
-function isConfigStillPlaceholder(configValue: string, placeholderPrefix: string): boolean {
-  return !configValue || configValue.startsWith(placeholderPrefix) || configValue.includes("YOUR_ACTUAL");
+function isConfigValueMissingOrPlaceholder(configValue: string | undefined, keyName: string, isOptional: boolean = false): boolean {
+  if (!configValue) {
+    if (isOptional) return false; // Optional and missing is fine
+    console.error(`Firebase Config Error (src/lib/firebase.ts): Environment variable for '${keyName}' is missing.`);
+    return true;
+  }
+  // Check if it's one of the known placeholder values if you had them before
+  if (configValue.startsWith("YOUR_ACTUAL_") || configValue.includes("PLACEHOLDER") || configValue.startsWith("AIza") && keyName === "apiKey" && configValue.length < 30) {
+      console.error(`Firebase Config Error (src/lib/firebase.ts): Environment variable for '${keyName}' appears to be a placeholder or invalid value: '${configValue}'.`);
+      return true;
+  }
+  return false;
 }
 
 function validateFirebaseConfig(config: typeof firebaseConfig): boolean {
   let isValid = true;
-  if (isConfigStillPlaceholder(config.apiKey, "YOUR_ACTUAL_API_KEY")) {
-    console.error("Firebase Config Error (src/lib/firebase.ts): 'apiKey' is a placeholder or missing. Update with your project's actual Firebase configuration.");
-    isValid = false;
-  }
-  if (isConfigStillPlaceholder(config.authDomain, "YOUR_ACTUAL_AUTH_DOMAIN")) {
-    console.error("Firebase Config Error (src/lib/firebase.ts): 'authDomain' is a placeholder or missing. Update with your project's actual Firebase configuration.");
-    isValid = false;
-  }
-  if (isConfigStillPlaceholder(config.projectId, "YOUR_ACTUAL_PROJECT_ID")) {
-    console.error("Firebase Config Error (src/lib/firebase.ts): 'projectId' is a placeholder or missing. Update with your project's actual Firebase configuration.");
-    isValid = false;
-  }
-  // Add more checks if other fields are critical for your app's startup (e.g., storageBucket)
-   if (isConfigStillPlaceholder(config.storageBucket, "YOUR_ACTUAL_STORAGE_BUCKET")) {
-    console.warn("Firebase Config Warning (src/lib/firebase.ts): 'storageBucket' is a placeholder. This might be an issue if you use Firebase Storage.");
-    // Not setting isValid to false for this one as it might not be used by all features immediately
+  if (isConfigValueMissingOrPlaceholder(config.apiKey, "NEXT_PUBLIC_FIREBASE_API_KEY")) isValid = false;
+  if (isConfigValueMissingOrPlaceholder(config.authDomain, "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN")) isValid = false;
+  if (isConfigValueMissingOrPlaceholder(config.projectId, "NEXT_PUBLIC_FIREBASE_PROJECT_ID")) isValid = false;
+  if (isConfigValueMissingOrPlaceholder(config.storageBucket, "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET")) isValid = false;
+  if (isConfigValueMissingOrPlaceholder(config.messagingSenderId, "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID")) isValid = false;
+  if (isConfigValueMissingOrPlaceholder(config.appId, "NEXT_PUBLIC_FIREBASE_APP_ID")) isValid = false;
+  
+  // measurementId is optional, so only check if it's a placeholder if it exists
+  if (config.measurementId && isConfigValueMissingOrPlaceholder(config.measurementId, "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID", true) && (config.measurementId.startsWith("YOUR_ACTUAL_") || config.measurementId.includes("PLACEHOLDER"))) {
+    // It was provided but looks like a placeholder
+    console.warn("Firebase Config Warning: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID seems to be a placeholder.");
   }
 
+
   if (!isValid) {
-    console.error("CRITICAL: Firebase configuration in src/lib/firebase.ts contains placeholder values or is incomplete. Firebase services will NOT work correctly. Please replace 'YOUR_ACTUAL_...' values with your project's credentials from the Firebase console.");
+    console.error("CRITICAL: Firebase configuration from environment variables is incomplete or contains placeholders. Firebase services may NOT work correctly. Please ensure all required NEXT_PUBLIC_FIREBASE_* environment variables are set with your project's actual Firebase credentials.");
   }
   return isValid;
 }
@@ -69,27 +67,30 @@ function validateFirebaseConfig(config: typeof firebaseConfig): boolean {
 console.log("Firebase module (src/lib/firebase.ts) loading...");
 
 if (!getApps().length) {
-  console.log("No Firebase apps initialized yet. Validating config...");
+  console.log("No Firebase apps initialized yet. Validating config from environment variables...");
   if (validateFirebaseConfig(firebaseConfig)) {
     try {
-      app = initializeApp(firebaseConfig);
-      console.log("Firebase app initialized successfully. Project ID:", firebaseConfig.projectId);
+      // We cast to `any` because the Firebase SDK expects all keys, but TS sees them as `string | undefined`
+      app = initializeApp(firebaseConfig as any);
+      console.log("Firebase app initialized successfully using environment variables. Project ID:", firebaseConfig.projectId);
     } catch (error) {
       console.error("Firebase Initialization Error (initializeApp):", error);
-      console.error("Ensure firebaseConfig object in src/lib/firebase.ts is correct for your project:", firebaseConfig.projectId);
+      console.error("Ensure firebaseConfig object in src/lib/firebase.ts is correctly sourcing from environment variables.");
       app = null;
     }
   } else {
-    console.error("Firebase Initialization Aborted: firebaseConfig in src/lib/firebase.ts is invalid. Firebase services will be unavailable.");
+    console.error("Firebase Initialization Aborted: firebaseConfig from environment variables is invalid. Firebase services will be unavailable.");
     app = null;
   }
 } else {
   app = getApp();
   console.log("Firebase app already initialized. Using existing instance. Project ID from existing app:", app.options.projectId);
-  if (app.options.projectId !== firebaseConfig.projectId && validateFirebaseConfig(firebaseConfig)) {
-     console.warn(`Firebase Project ID Mismatch: Existing app's projectId ('${app.options.projectId}') does not match firebaseConfig.projectId ('${firebaseConfig.projectId}'). This can happen with HMR. Current config is otherwise valid.`);
-  } else if (!validateFirebaseConfig(firebaseConfig)) {
-     console.warn("Firebase app was already initialized, but current firebaseConfig in src/lib/firebase.ts is invalid. This may cause issues.");
+  // Optionally, re-validate if the loaded config differs from the existing app's options
+  if (app.options.projectId !== firebaseConfig.projectId) {
+     console.warn(`Firebase Project ID Mismatch: Existing app's projectId ('${app.options.projectId}') does not match configured NEXT_PUBLIC_FIREBASE_PROJECT_ID ('${firebaseConfig.projectId}'). This can happen with HMR. Ensure your environment variables are correct.`);
+     if (!validateFirebaseConfig(firebaseConfig)) {
+       console.error("Additionally, the current Firebase configuration from environment variables is invalid.");
+     }
   }
 }
 
@@ -121,19 +122,19 @@ if (app) {
   if (typeof window !== 'undefined') {
     isAnalyticsSupported().then(supported => {
       if (supported) {
-        if (firebaseConfig.measurementId && !isConfigStillPlaceholder(firebaseConfig.measurementId, "YOUR_ACTUAL_MEASUREMENT_ID")) {
+        if (firebaseConfig.measurementId && !isConfigValueMissingOrPlaceholder(firebaseConfig.measurementId, "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID", true)) {
           try {
-            analytics = getAnalytics(app);
+            analytics = getAnalytics(app!); // app is guaranteed to be non-null here if measurementId is valid
             console.log("Firebase Analytics initialized.");
           } catch (error) {
             console.error("Error initializing Firebase Analytics:", error);
             analytics = undefined;
           }
-        } else if (firebaseConfig.measurementId && isConfigStillPlaceholder(firebaseConfig.measurementId, "YOUR_ACTUAL_MEASUREMENT_ID")) {
-            console.warn("Firebase Analytics not initialized: 'measurementId' in firebaseConfig (src/lib/firebase.ts) is a placeholder. Update if you intend to use Analytics.");
+        } else if (firebaseConfig.measurementId && isConfigValueMissingOrPlaceholder(firebaseConfig.measurementId, "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID", true)) {
+            console.warn("Firebase Analytics not initialized: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID in environment variables is a placeholder or invalid. Update if you intend to use Analytics.");
             analytics = undefined;
         } else {
-            console.info("Firebase Analytics not initialized: 'measurementId' is not provided or is invalid in firebaseConfig (src/lib/firebase.ts).");
+            console.info("Firebase Analytics not initialized: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID is not provided in environment variables.");
             analytics = undefined;
         }
       } else {
@@ -143,7 +144,7 @@ if (app) {
     });
   }
 } else {
-  console.error("Firebase app is null. Firestore, Storage, Auth, and Analytics will not be available. Review previous errors in src/lib/firebase.ts.");
+  console.error("Firebase app is null. Firestore, Storage, Auth, and Analytics will not be available. Review previous errors regarding environment variable configuration in src/lib/firebase.ts.");
   db = null;
   storage = null;
   auth = null;
