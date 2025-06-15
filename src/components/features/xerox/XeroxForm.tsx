@@ -13,7 +13,6 @@ import { OrderSummary } from "./OrderSummary";
 import { PrintPreview } from "./PrintPreview";
 import { useToast } from "@/hooks/use-toast";
 import { PDFDocument } from 'pdf-lib';
-// import { submitOrderToMongoDB, type OrderFormPayload } from '@/app/actions/submitOrder'; // Direct submission removed from here
 import { useAuth } from "@/context/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -21,7 +20,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Send, CreditCard, ArrowRight, ArrowLeft, PackageCheck, UserCheck } from "lucide-react";
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
-// SubmissionStatus for this form now mostly relates to step progression, not direct DB submission
 export type SubmissionStatus = 'idle' | 'preparing' | 'navigating' | 'success' | 'error'; 
 type DeliveryMethod = 'pickup' | 'home_delivery';
 type XeroxFormStep = 'upload_settings' | 'delivery_method' | 'delivery_details' | 'summary_payment';
@@ -64,14 +62,14 @@ export default function XeroxForm() {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('pickup');
   const [selectedPickupCenter, setSelectedPickupCenter] = useState<string>(PICKUP_CENTERS[0] || "");
   const [homeDeliveryAddress, setHomeDeliveryAddress] = useState<Address>({
-    street: "", city: "", state: "", zip: "", country: "India", // Default country
+    street: "", city: "", state: "", zip: "", country: "India",
   });
 
   const [printCost, setPrintCost] = useState<number>(0);
   const [actualDeliveryFee, setActualDeliveryFee] = useState<number>(0);
   const [totalCost, setTotalCost] = useState<number>(0);
   
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // Renamed for clarity, means "processing current action"
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formSubmissionStatus, setFormSubmissionStatus] = useState<SubmissionStatus>('idle');
 
 
@@ -108,7 +106,7 @@ export default function XeroxForm() {
         const pageCount = pdfDoc.getPageCount();
         setNumPagesStr(pageCount.toString());
         setPageCountStatus('detected');
-        setFileDataUri(arrayBufferToDataUri(arrayBuffer, selectedFile.type)); // Store the data URI
+        setFileDataUri(arrayBufferToDataUri(arrayBuffer, selectedFile.type)); 
         toast({ title: "PDF Processed", description: `${pageCount} page(s) found. File ready.` });
       } catch (error) {
         console.error("Failed to process PDF:", error);
@@ -127,7 +125,7 @@ export default function XeroxForm() {
     if (isNaN(numP) || numP <= 0 || isNaN(numC) || numC <= 0 || pageCountStatus === 'processing') {
       setPrintCost(0); return;
     }
-    let costPerPage = printColor === 'color' ? 0.50 : 0.10; // Example prices
+    let costPerPage = printColor === 'color' ? 0.50 : 0.10; 
     const paperSizeMultipliers: Record<typeof paperSize, number> = { A4: 1.0, Letter: 1.0, Legal: 1.2 };
     costPerPage *= paperSizeMultipliers[paperSize];
     let currentPrintCost = numP * costPerPage * numC;
@@ -202,7 +200,7 @@ export default function XeroxForm() {
 
     setIsSubmitting(true);
     setFormSubmissionStatus('navigating');
-    toast({ title: "Proceeding to Payment", description: "Redirecting to secure payment page..." });
+    toast({ title: "Proceeding to Secure Payment", description: "All print orders require online payment. Redirecting..." });
 
     const queryParams = new URLSearchParams({
         fileName: fileName || "Untitled.pdf",
@@ -231,7 +229,6 @@ export default function XeroxForm() {
     
     sessionStorage.setItem('pendingOrderFileDataUri', fileDataUri);
     router.push(`/payment?${queryParams.toString()}`);
-    // setIsSubmitting will be reset if navigation fails or user comes back
   };
 
   
@@ -389,7 +386,7 @@ export default function XeroxForm() {
           <Button variant="outline" onClick={handlePrevStep} disabled={isSubmitting}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Previous
           </Button>
-        ) : <div /> /* Placeholder to keep Next button to the right */}
+        ) : <div /> }
         {currentStep !== 'summary_payment' && (
           <Button 
             onClick={handleNextStep} 

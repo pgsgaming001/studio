@@ -9,8 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import React, { useEffect, useState, Suspense } from 'react';
 import { submitOrderToMongoDB, type OrderFormPayload, type RazorpayPaymentDetails } from '@/app/actions/submitOrder';
 import type { Address } from '@/components/features/xerox/DeliveryAddress';
-import { createRazorpayOrder } from '@/app/actions/createRazorpayOrder'; // Import createRazorpayOrder
-import { useAuth } from '@/context/AuthContext'; // Import useAuth
+import { createRazorpayOrder } from '@/app/actions/createRazorpayOrder'; 
+import { useAuth } from '@/context/AuthContext'; 
 
 declare global {
   interface Window {
@@ -22,10 +22,10 @@ function PaymentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const authContext = useAuth(); // Get auth context
+  const authContext = useAuth(); 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [orderDetails, setOrderDetails] = useState<Partial<OrderFormPayload & { totalCost: number }>>({}); // Ensure totalCost is number
+  const [orderDetails, setOrderDetails] = useState<Partial<OrderFormPayload & { totalCost: number }>>({}); 
   const [fileDataUriForUpload, setFileDataUriForUpload] = useState<string | null>(null);
 
 
@@ -41,9 +41,8 @@ function PaymentPageContent() {
         return;
     }
     
-    // Retrieve fileDataUri from session storage
     const storedFileDataUri = sessionStorage.getItem('pendingOrderFileDataUri');
-    if (!storedFileDataUri && params.fileName) { // If fileName is present, a file was expected
+    if (!storedFileDataUri && params.fileName) { 
         setError("Uploaded file data not found. Please restart the order process.");
         toast({title: "File Error", description: "File data missing. Please re-upload.", variant: "destructive"});
         return;
@@ -51,7 +50,7 @@ function PaymentPageContent() {
     setFileDataUriForUpload(storedFileDataUri);
 
     setOrderDetails({
-        fileName: params.fileName || null, // Can be null if no file (though usually expected)
+        fileName: params.fileName || null, 
         numPages: params.numPages,
         numCopies: params.numCopies,
         printColor: params.printColor as 'color' | 'bw',
@@ -60,14 +59,14 @@ function PaymentPageContent() {
         layout: params.layout as '1up' | '2up',
         totalCost: parseFloat(params.totalCost),
         deliveryMethod: params.deliveryMethod as 'pickup' | 'home_delivery',
-        deliveryAddress: { // Ensure this is always an object
+        deliveryAddress: { 
             street: params.street || '',
             city: params.city || '',
             state: params.state || '',
             zip: params.zip || '',
             country: params.country || '',
         } as Address,
-        pickupCenter: params.pickupCenter || undefined, // Handle pickup center
+        pickupCenter: params.pickupCenter || undefined, 
         userId: params.userId,
         userEmail: params.userEmail,
         userName: params.userName,
@@ -85,7 +84,7 @@ function PaymentPageContent() {
       toast({ title: "Invalid Amount", description: "Order total is not valid for payment.", variant: "destructive" });
       return;
     }
-    if (orderDetails.fileName && !fileDataUriForUpload) { // Check if file was expected but not found
+    if (orderDetails.fileName && !fileDataUriForUpload) { 
         toast({title: "File Error", description: "Uploaded file data is missing. Please restart order.", variant: "destructive"});
         setError("File data missing. Re-upload required.");
         return;
@@ -98,7 +97,7 @@ function PaymentPageContent() {
     try {
       const razorpayOrderResponse = await createRazorpayOrder({
         amount: orderDetails.totalCost,
-        currency: "INR", // Assuming INR
+        currency: "INR", 
       });
 
       if (!razorpayOrderResponse.success || !razorpayOrderResponse.orderId || !razorpayOrderResponse.razorpayKeyId) {
@@ -109,16 +108,16 @@ function PaymentPageContent() {
 
       const options = {
         key: rzpKeyId,
-        amount: razorpayOrderResponse.amount, // Amount in paise from Razorpay
+        amount: razorpayOrderResponse.amount, 
         currency: razorpayOrderResponse.currency,
         name: "Xerox2U Print Service",
         description: `Order for ${orderDetails.fileName || 'document print'}`,
         order_id: razorpayOrderResponse.orderId,
         handler: async function (response: RazorpayPaymentDetails) {
-          // Payment successful, now submit order to MongoDB
+          
           const finalPayload: OrderFormPayload = {
-            ...(orderDetails as OrderFormPayload), // Cast as orderDetails now should have all required fields
-            fileDataUri: fileDataUriForUpload, // Use state variable
+            ...(orderDetails as OrderFormPayload), 
+            fileDataUri: fileDataUriForUpload, 
             paymentMethod: 'razorpay',
             paymentDetails: {
               razorpay_payment_id: response.razorpay_payment_id,
@@ -129,7 +128,7 @@ function PaymentPageContent() {
           
           try {
             const submissionResult = await submitOrderToMongoDB(finalPayload);
-            sessionStorage.removeItem('pendingOrderFileDataUri'); // Clean up
+            sessionStorage.removeItem('pendingOrderFileDataUri'); 
 
             if (submissionResult.success && submissionResult.orderId) {
               toast({ title: "Payment Successful & Order Placed!", description: `Order ID: ${submissionResult.orderId.substring(0,8)}...` });
@@ -141,7 +140,7 @@ function PaymentPageContent() {
               });
               if (orderDetails.deliveryMethod === 'pickup' && submissionResult.pickupCode) {
                 queryParams.set('pickupCode', submissionResult.pickupCode);
-                queryParams.set('pickupCenter', orderDetails.pickupCenter || "N/A");
+                queryParams.set('pickupCenter', encodeURIComponent(orderDetails.pickupCenter || "N/A"));
               }
               router.push(`/order-confirmation?${queryParams.toString()}`);
 
@@ -165,7 +164,7 @@ function PaymentPageContent() {
           deliveryMethod: orderDetails.deliveryMethod,
         },
         theme: {
-          color: "#2E9AFF", // Primary color
+          color: "#2E9AFF", 
         },
       };
 
@@ -192,7 +191,7 @@ function PaymentPageContent() {
     }
   };
 
-  if (authContext.loading || Object.keys(orderDetails).length === 0 && !error) { // Check if orderDetails is empty and no error
+  if (authContext.loading || Object.keys(orderDetails).length === 0 && !error) { 
      return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4">
             <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
@@ -274,3 +273,4 @@ export default function PaymentPage() {
     </Suspense>
   );
 }
+

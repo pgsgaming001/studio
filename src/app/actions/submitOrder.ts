@@ -44,8 +44,8 @@ export interface OrderDataMongo {
   userEmail: string; 
   userName: string; 
 
-  paymentMethod: 'cod' | 'razorpay'; // Added paymentMethod
-  paymentDetails?: RazorpayPaymentDetails; // Added paymentDetails for Razorpay
+  paymentMethod: 'cod' | 'razorpay'; 
+  paymentDetails?: RazorpayPaymentDetails; 
 }
 
 // This is the type for data coming from the form/payment page
