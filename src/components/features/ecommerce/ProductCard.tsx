@@ -29,8 +29,8 @@ export const ProductCard = ({ product }: { product: Product }) => {
 
   return (
     <Link href={`/product/${product.id}`} passHref legacyBehavior>
-      <a className="block h-full group">
-        <Card className="overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-300 rounded-xl flex flex-col h-full bg-card">
+      <a className="block group">
+        <Card className="overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-300 rounded-xl flex flex-col bg-card h-[420px]">
           <div className="relative w-full aspect-square bg-secondary overflow-hidden">
             <Image
               src={product.image || "https://placehold.co/400x400.png"}
