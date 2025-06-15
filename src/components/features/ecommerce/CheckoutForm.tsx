@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Phone, Home, Mail, Landmark, ShoppingCart, Loader2, CreditCard } from "lucide-react"; // Added CreditCard
+import { User, Phone, Home, Mail, Landmark, ShoppingCart, Loader2, CreditCard } from "lucide-react";
 import { useEffect } from "react"; 
 
 const checkoutFormSchema = z.object({
@@ -21,7 +21,7 @@ const checkoutFormSchema = z.object({
   city: z.string().min(2, "City name is too short."),
   postalCode: z.string().min(3, "Postal code is too short."),
   country: z.string().min(2, "Country name is too short."),
-  paymentMethod: z.enum(["cod", "razorpay"], { // Changed "card_placeholder" to "razorpay"
+  paymentMethod: z.enum(["cod", "razorpay"], {
     required_error: "Please select a payment method.",
   }),
 });
@@ -199,7 +199,7 @@ export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName
                           <RadioGroupItem value="razorpay"/>
                         </FormControl>
                         <FormLabel className="font-normal text-base cursor-pointer flex items-center">
-                          <CreditCard size={18} className="mr-2 text-primary"/> Credit/Debit Card / UPI / NetBanking
+                          <CreditCard size={18} className="mr-2 text-primary"/> Online Payment (Card, UPI, etc. via Razorpay)
                         </FormLabel>
                       </FormItem>
                     </RadioGroup>
@@ -209,7 +209,7 @@ export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName
               )}
             />
              <p className="text-xs text-muted-foreground mt-4 text-center">
-                Online payments powered by Razorpay.
+                Online payments powered by Razorpay. Available methods (UPI, Cards, NetBanking, Wallets) are determined by your Razorpay account settings.
             </p>
           </CardContent>
         </Card>
@@ -226,3 +226,4 @@ export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName
     </Form>
   );
 }
+
