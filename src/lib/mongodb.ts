@@ -7,8 +7,8 @@ let cachedClient: MongoClient | null = null;
 let cachedDb: Db | null = null;
 
 export async function connectToDatabase(): Promise<{ client: MongoClient, db: Db }> {
-  const MONGODB_URI = process.env.MONGODB_URI;
-  const DB_NAME = process.env.DB_NAME || 'myFirstProjectDB';
+  const MONGODB_URI = 'mongodb+srv://pgsgaming001:pgsgaming@cluster0.4uvwyr6.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+  const DB_NAME ='myFirstProjectDB';
 
   if (!MONGODB_URI) {
     const detailedErrorMessage = `

@@ -52,7 +52,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
               </div>
             )}
           </div>
-          <CardHeader className="p-4 flex-grow">
+          <CardHeader className="p-4 flex-grow overflow-hidden"> {/* Added overflow-hidden here */}
             <p className="text-xs text-muted-foreground uppercase tracking-wider">{product.category}</p>
             <CardTitle className="text-lg font-semibold text-card-foreground mt-1 leading-tight h-12 overflow-hidden group-hover:text-primary transition-colors">
               {product.name}
