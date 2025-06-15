@@ -13,7 +13,7 @@ import { OrderSummary } from "./OrderSummary";
 import { PrintPreview } from "./PrintPreview";
 import { useToast } from "@/hooks/use-toast";
 import { PDFDocument } from 'pdf-lib';
-import { submitOrderToMongoDB, type OrderFormPayload } from '@/app/actions/submitOrder'; 
+// import { submitOrderToMongoDB, type OrderFormPayload } from '@/app/actions/submitOrder'; // Direct submission removed from here
 import { useAuth } from "@/context/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Send, CreditCard, ArrowRight, ArrowLeft, PackageCheck, UserCheck } from "lucide-react";
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
-export type SubmissionStatus = 'idle' | 'preparing' | 'uploading' | 'processing' | 'success' | 'error';
+// SubmissionStatus for this form now mostly relates to step progression, not direct DB submission
+export type SubmissionStatus = 'idle' | 'preparing' | 'navigating' | 'success' | 'error'; 
 type DeliveryMethod = 'pickup' | 'home_delivery';
 type XeroxFormStep = 'upload_settings' | 'delivery_method' | 'delivery_details' | 'summary_payment';
 
@@ -63,15 +64,16 @@ export default function XeroxForm() {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('pickup');
   const [selectedPickupCenter, setSelectedPickupCenter] = useState<string>(PICKUP_CENTERS[0] || "");
   const [homeDeliveryAddress, setHomeDeliveryAddress] = useState<Address>({
-    street: "", city: "", state: "", zip: "", country: "",
+    street: "", city: "", state: "", zip: "", country: "India", // Default country
   });
 
   const [printCost, setPrintCost] = useState<number>(0);
   const [actualDeliveryFee, setActualDeliveryFee] = useState<number>(0);
   const [totalCost, setTotalCost] = useState<number>(0);
   
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>('idle');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // Renamed for clarity, means "processing current action"
+  const [formSubmissionStatus, setFormSubmissionStatus] = useState<SubmissionStatus>('idle');
+
 
   const handleFileChange = async (selectedFile: File | null) => {
     if (!authContext.user) {
@@ -106,7 +108,7 @@ export default function XeroxForm() {
         const pageCount = pdfDoc.getPageCount();
         setNumPagesStr(pageCount.toString());
         setPageCountStatus('detected');
-        setFileDataUri(arrayBufferToDataUri(arrayBuffer, selectedFile.type));
+        setFileDataUri(arrayBufferToDataUri(arrayBuffer, selectedFile.type)); // Store the data URI
         toast({ title: "PDF Processed", description: `${pageCount} page(s) found. File ready.` });
       } catch (error) {
         console.error("Failed to process PDF:", error);
@@ -125,7 +127,7 @@ export default function XeroxForm() {
     if (isNaN(numP) || numP <= 0 || isNaN(numC) || numC <= 0 || pageCountStatus === 'processing') {
       setPrintCost(0); return;
     }
-    let costPerPage = printColor === 'color' ? 0.50 : 0.10;
+    let costPerPage = printColor === 'color' ? 0.50 : 0.10; // Example prices
     const paperSizeMultipliers: Record<typeof paperSize, number> = { A4: 1.0, Letter: 1.0, Legal: 1.2 };
     costPerPage *= paperSizeMultipliers[paperSize];
     let currentPrintCost = numP * costPerPage * numC;
@@ -143,14 +145,14 @@ export default function XeroxForm() {
     setTotalCost(printCost + currentDeliveryFee);
   }, [printCost, deliveryMethod]);
 
-  const validateStep1 = () => {
+  const validateStep1_UploadSettings = () => {
     if (!authContext.user) return false;
     const numP = parseInt(numPagesStr);
     const isFileValid = !!file && !!fileDataUri; 
     return isFileValid && !isNaN(numP) && numP > 0 && pageCountStatus !== 'processing';
   };
 
-  const validateStep3 = () => {
+  const validateStep3_DeliveryDetails = () => {
     if (!authContext.user) return false;
     if (deliveryMethod === 'pickup') return !!selectedPickupCenter;
     if (deliveryMethod === 'home_delivery') {
@@ -168,11 +170,13 @@ export default function XeroxForm() {
       toast({ title: "Authentication Required", description: "Please sign in to proceed.", variant: "destructive" });
       return;
     }
-    if (currentStep === 'upload_settings' && validateStep1()) setCurrentStep('delivery_method');
+    if (currentStep === 'upload_settings' && validateStep1_UploadSettings()) setCurrentStep('delivery_method');
     else if (currentStep === 'delivery_method') setCurrentStep('delivery_details');
-    else if (currentStep === 'delivery_details' && validateStep3()) setCurrentStep('summary_payment');
-    else if (currentStep === 'upload_settings' && !validateStep1()) {
+    else if (currentStep === 'delivery_details' && validateStep3_DeliveryDetails()) setCurrentStep('summary_payment');
+    else if (currentStep === 'upload_settings' && !validateStep1_UploadSettings()) {
        toast({ title: "Incomplete Information", description: "Please upload a valid PDF and ensure page count is set.", variant: "destructive" });
+    } else if (currentStep === 'delivery_details' && !validateStep3_DeliveryDetails()){
+       toast({ title: "Incomplete Delivery Information", description: "Please complete the delivery or pickup details.", variant: "destructive" });
     }
   };
 
@@ -181,62 +185,26 @@ export default function XeroxForm() {
     else if (currentStep === 'delivery_details') setCurrentStep('delivery_method');
     else if (currentStep === 'delivery_method') setCurrentStep('upload_settings');
   };
-
-  const handlePlaceOrderOrProceedToPayment = async () => {
+  
+  const proceedToPaymentPage = () => {
     if (!authContext.user) {
-      toast({ title: "Authentication Required", description: "Please sign in to place an order.", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!validateStep1() || !validateStep3()) {
-        toast({ title: "Incomplete Information", description: "Please complete all required fields.", variant: "destructive" });
-        setIsSubmitting(false);
+        toast({ title: "Authentication Required", description: "Please sign in to proceed.", variant: "destructive" });
         return;
     }
+    if (!validateStep1_UploadSettings() || !validateStep3_DeliveryDetails()) {
+        toast({ title: "Incomplete Information", description: "Please ensure all previous steps are complete.", variant: "destructive" });
+        return;
+    }
+    if (!fileDataUri) {
+        toast({ title: "File Error", description: "File data is missing. Please re-upload your PDF.", variant: "destructive" });
+        return;
+    }
+
     setIsSubmitting(true);
-    const user = authContext.user; // Ensured user exists by this point
+    setFormSubmissionStatus('navigating');
+    toast({ title: "Proceeding to Payment", description: "Redirecting to secure payment page..." });
 
-    const commonPayload = {
-      fileName, // This can be null if not file is selected, but validateStep1 should catch it
-      fileDataUri, // This can be null, validateStep1 should catch it
-      numPages: numPagesStr,
-      numCopies: numCopiesStr,
-      printColor,
-      paperSize,
-      printSides,
-      layout,
-      totalCost,
-      userId: user.uid,
-      userEmail: user.email || "N/A", // Provide a fallback or ensure email exists
-      userName: user.displayName || "Anonymous User", // Provide a fallback
-    };
-
-    if (deliveryMethod === 'pickup') {
-      setSubmissionStatus('processing');
-      const orderPayload: OrderFormPayload = {
-        ...commonPayload,
-        deliveryMethod: 'pickup',
-        pickupCenter: selectedPickupCenter,
-        deliveryAddress: { street: '', city: '', state: '', zip: '', country: '' }, 
-      };
-      try {
-        const result = await submitOrderToMongoDB(orderPayload);
-        if (result.success && result.orderId && result.pickupCode) {
-          setSubmissionStatus('success');
-          toast({ title: "Order Placed!", description: `Pickup Code: ${result.pickupCode}. Order ID: ${result.orderId.substring(0,8)}...` });
-          router.push(`/order-confirmation?orderId=${result.orderId}&pickupCode=${result.pickupCode}&deliveryMethod=pickup&pickupCenter=${encodeURIComponent(selectedPickupCenter)}`);
-        } else {
-          throw new Error(result.error || "Failed to submit pickup order.");
-        }
-      } catch (error: any) {
-        setSubmissionStatus('error');
-        toast({ title: "Order Failed", description: error.message, variant: "destructive" });
-      } finally {
-        setIsSubmitting(false);
-      }
-    } else { // Home Delivery
-      const paymentPageQuery = new URLSearchParams({
+    const queryParams = new URLSearchParams({
         fileName: fileName || "Untitled.pdf",
         numPages: numPagesStr,
         numCopies: numCopiesStr,
@@ -245,35 +213,34 @@ export default function XeroxForm() {
         printSides,
         layout,
         totalCost: totalCost.toString(),
-        deliveryMethod: 'home_delivery',
-        street: homeDeliveryAddress.street,
-        city: homeDeliveryAddress.city,
-        state: homeDeliveryAddress.state,
-        zip: homeDeliveryAddress.zip,
-        country: homeDeliveryAddress.country,
-        userId: user.uid, 
-        userEmail: user.email || '', 
-        userName: user.displayName || '',
-      }).toString();
-      
-      if (fileDataUri) {
-        sessionStorage.setItem('pendingOrderFileDataUri', fileDataUri);
-      } else {
-        toast({title: "File Error", description: "File data is missing. Cannot proceed to payment.", variant: "destructive"});
-        setIsSubmitting(false);
-        return;
-      }
-      
-      router.push(`/payment?${paymentPageQuery}`);
+        deliveryMethod,
+        userId: authContext.user.uid,
+        userEmail: authContext.user.email || '',
+        userName: authContext.user.displayName || '',
+    });
+
+    if (deliveryMethod === 'home_delivery') {
+        queryParams.set('street', homeDeliveryAddress.street);
+        queryParams.set('city', homeDeliveryAddress.city);
+        queryParams.set('state', homeDeliveryAddress.state);
+        queryParams.set('zip', homeDeliveryAddress.zip);
+        queryParams.set('country', homeDeliveryAddress.country);
+    } else if (deliveryMethod === 'pickup') {
+        queryParams.set('pickupCenter', selectedPickupCenter);
     }
+    
+    sessionStorage.setItem('pendingOrderFileDataUri', fileDataUri);
+    router.push(`/payment?${queryParams.toString()}`);
+    // setIsSubmitting will be reset if navigation fails or user comes back
   };
+
   
   const getStepTitle = () => {
     switch(currentStep) {
       case 'upload_settings': return "1. Upload & Print Settings";
       case 'delivery_method': return "2. Delivery Method";
       case 'delivery_details': return `3. ${deliveryMethod === 'pickup' ? 'Pickup Details' : 'Delivery Address'}`;
-      case 'summary_payment': return "4. Summary & Confirm";
+      case 'summary_payment': return "4. Summary & Proceed to Payment";
       default: return "Print Service";
     }
   };
@@ -395,14 +362,12 @@ export default function XeroxForm() {
               )}
                 {authContext.user ? (
                 <Button 
-                    onClick={handlePlaceOrderOrProceedToPayment} 
+                    onClick={proceedToPaymentPage} 
                     disabled={isSubmitting || !authContext.user}
                     className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-base py-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
                 >
-                    {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 
-                    (deliveryMethod === 'pickup' ? <PackageCheck className="mr-2 h-5 w-5" /> : <CreditCard className="mr-2 h-5 w-5" />)
-                    }
-                    {isSubmitting ? 'Processing...' : (deliveryMethod === 'pickup' ? 'Place Pickup Order' : 'Proceed to Payment')}
+                    {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CreditCard className="mr-2 h-5 w-5" /> }
+                    {isSubmitting ? 'Processing...' : 'Proceed to Secure Payment'}
                 </Button>
                 ) : (
                  <Button 
@@ -413,12 +378,6 @@ export default function XeroxForm() {
                     <UserCheck className="mr-2 h-5 w-5" /> Please Sign In to Place Order
                 </Button>
                 )}
-               {submissionStatus === 'success' && deliveryMethod === 'pickup' && (
-                  <p className="text-sm text-green-600 text-center mt-2">Pickup order placed successfully!</p>
-                )}
-                {submissionStatus === 'error' && (
-                  <p className="text-sm text-red-600 text-center mt-2">Order submission failed. Please try again.</p>
-                )}
             </div>
           )}
 
@@ -426,15 +385,15 @@ export default function XeroxForm() {
        </Card>
 
       <div className="flex justify-between mt-6">
-        {currentStep !== 'upload_settings' && (
+        {currentStep !== 'upload_settings' ? (
           <Button variant="outline" onClick={handlePrevStep} disabled={isSubmitting}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Previous
           </Button>
-        )}
+        ) : <div /> /* Placeholder to keep Next button to the right */}
         {currentStep !== 'summary_payment' && (
           <Button 
             onClick={handleNextStep} 
-            disabled={isSubmitting || (currentStep === 'upload_settings' && (!authContext.user || !validateStep1())) || (currentStep === 'delivery_details' && (!authContext.user || !validateStep3()))}
+            disabled={isSubmitting || (currentStep === 'upload_settings' && (!authContext.user || !validateStep1_UploadSettings())) || (currentStep === 'delivery_details' && (!authContext.user || !validateStep3_DeliveryDetails()))}
             className="ml-auto"
           >
             Next <ArrowRight className="ml-2 h-4 w-4" />
@@ -444,3 +403,4 @@ export default function XeroxForm() {
     </div>
   );
 }
+

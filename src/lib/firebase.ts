@@ -12,24 +12,24 @@ import { getAuth, type Auth } from "firebase/auth";
 // or Railway environment variable settings for deployment).
 // For client-side access in Next.js, they must be prefixed with NEXT_PUBLIC_.
 // -----------------------------------------------------------------------------
-// const firebaseConfig = {
-//   apiKey: "AIzaSyDtbjxfeH1EJJpqIv3ZiIjoCCDSjRzmCZk",
-//   authDomain: "my-first-project-6eebf.firebaseapp.com",
-//   projectId: "my-first-project-6eebf",
-//   storageBucket: "my-first-project-6eebf.appspot.com",
-//   messagingSenderId: "1010692245718",
-//   appId: "1:1010692245718:web:2906c0523917847dc52177",
-//   measurementId: "G-84V7PD58P5"
-// };
-
 const firebaseConfig = {
-  apiKey: "AIzaSyAm6yM-MbX39_VN3A8B9FD16Zx-tNrtdaQ",
-  authDomain: "mern-estate-1b297.firebaseapp.com",
-  projectId: "mern-estate-1b297",
-  storageBucket: "mern-estate-1b297.appspot.com",
-  messagingSenderId: "1047709383656",
-  appId: "1:1047709383656:web:40f51404a1d034192cc25d"
+  apiKey: "AIzaSyDtbjxfeH1EJJpqIv3ZiIjoCCDSjRzmCZk",
+  authDomain: "my-first-project-6eebf.firebaseapp.com",
+  projectId: "my-first-project-6eebf",
+  storageBucket: "my-first-project-6eebf.appspot.com",
+  messagingSenderId: "1010692245718",
+  appId: "1:1010692245718:web:2906c0523917847dc52177",
+  measurementId: "G-84V7PD58P5"
 };
+
+// const firebaseConfig = {
+//   apiKey: "AIzaSyAm6yM-MbX39_VN3A8B9FD16Zx-tNrtdaQ",
+//   authDomain: "mern-estate-1b297.firebaseapp.com",
+//   projectId: "mern-estate-1b297",
+//   storageBucket: "mern-estate-1b297.appspot.com",
+//   messagingSenderId: "1047709383656",
+//   appId: "1:1047709383656:web:40f51404a1d034192cc25d"
+// };
 
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
