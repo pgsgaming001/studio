@@ -37,8 +37,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
               alt={product.name}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              style={{ objectFit: 'cover' }}
-              className="group-hover:scale-105 transition-transform duration-300"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
               data-ai-hint={product.dataAiHint || product.name.split(" ").slice(0,2).join(" ")}
             />
             {product.originalPrice && product.originalPrice > product.price && (
