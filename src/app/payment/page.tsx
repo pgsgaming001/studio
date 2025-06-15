@@ -9,12 +9,12 @@ import { useToast } from '@/hooks/use-toast';
 import React, { useEffect, useState, Suspense } from 'react';
 import { submitOrderToMongoDB, type OrderFormPayload, type RazorpayPaymentDetails } from '@/app/actions/submitOrder';
 import type { Address } from '@/components/features/xerox/DeliveryAddress';
-import { createRazorpayOrder } from '@/app/actions/createRazorpayOrder'; 
-import { useAuth } from '@/context/AuthContext'; 
+import { createRazorpayOrder } from '@/app/actions/createRazorpayOrder';
+import { useAuth } from '@/context/AuthContext';
 
 declare global {
   interface Window {
-    Razorpay: any; 
+    Razorpay: any;
   }
 }
 
@@ -22,10 +22,10 @@ function PaymentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const authContext = useAuth(); 
+  const authContext = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [orderDetails, setOrderDetails] = useState<Partial<OrderFormPayload & { totalCost: number }>>({}); 
+  const [orderDetails, setOrderDetails] = useState<Partial<OrderFormPayload & { totalCost: number }>>({});
   const [fileDataUriForUpload, setFileDataUriForUpload] = useState<string | null>(null);
 
 
@@ -34,39 +34,44 @@ function PaymentPageContent() {
     searchParams.forEach((value, key) => {
       params[key] = value;
     });
-    
-    if (!params.totalCost || !params.deliveryMethod || !params.userId || !params.userEmail || !params.userName) {
-        setError("Essential order details are missing. Please restart the order process.");
-        toast({title: "Invalid Order Data", description: "Missing critical details for payment.", variant: "destructive"});
+
+    const costParam = params.totalCost;
+    const parsedCost = parseFloat(costParam);
+
+    if (!costParam || isNaN(parsedCost) || parsedCost <= 0 || !params.deliveryMethod || !params.userId || !params.userEmail || !params.userName) {
+        setError("Essential order details are missing or invalid (e.g. cost is zero or not a number). Please restart the order process.");
+        toast({title: "Invalid Order Data", description: "Missing or invalid critical details for payment. Please go back and check your order inputs.", variant: "destructive", duration: 7000});
+        setOrderDetails({}); 
         return;
     }
-    
+
     const storedFileDataUri = sessionStorage.getItem('pendingOrderFileDataUri');
-    if (!storedFileDataUri && params.fileName) { 
-        setError("Uploaded file data not found. Please restart the order process.");
-        toast({title: "File Error", description: "File data missing. Please re-upload.", variant: "destructive"});
+    if (!storedFileDataUri && params.fileName) {
+        setError("Uploaded file data not found. Please restart the order process by re-uploading your file.");
+        toast({title: "File Error", description: "File data missing. Please re-upload your PDF and complete the form again.", variant: "destructive", duration: 7000});
+        setOrderDetails({});
         return;
     }
     setFileDataUriForUpload(storedFileDataUri);
 
     setOrderDetails({
-        fileName: params.fileName || null, 
+        fileName: params.fileName || null,
         numPages: params.numPages,
         numCopies: params.numCopies,
         printColor: params.printColor as 'color' | 'bw',
         paperSize: params.paperSize as 'A4' | 'Letter' | 'Legal',
         printSides: params.printSides as 'single' | 'double',
         layout: params.layout as '1up' | '2up',
-        totalCost: parseFloat(params.totalCost),
+        totalCost: parsedCost,
         deliveryMethod: params.deliveryMethod as 'pickup' | 'home_delivery',
-        deliveryAddress: { 
+        deliveryAddress: {
             street: params.street || '',
             city: params.city || '',
             state: params.state || '',
             zip: params.zip || '',
             country: params.country || '',
         } as Address,
-        pickupCenter: params.pickupCenter || undefined, 
+        pickupCenter: params.pickupCenter || undefined,
         userId: params.userId,
         userEmail: params.userEmail,
         userName: params.userName,
@@ -80,11 +85,13 @@ function PaymentPageContent() {
       toast({ title: "Authentication Required", description: "Please sign in to make a payment.", variant: "destructive" });
       return;
     }
-    if (!orderDetails.totalCost || orderDetails.totalCost <= 0) {
-      toast({ title: "Invalid Amount", description: "Order total is not valid for payment.", variant: "destructive" });
+    // Double check totalCost validity before proceeding
+    if (typeof orderDetails.totalCost !== 'number' || isNaN(orderDetails.totalCost) || orderDetails.totalCost <= 0) {
+      toast({ title: "Invalid Amount", description: "Order total is not valid for payment. Please go back and adjust your order.", variant: "destructive" });
+      setError("Order total is invalid. Please restart.");
       return;
     }
-    if (orderDetails.fileName && !fileDataUriForUpload) { 
+    if (orderDetails.fileName && !fileDataUriForUpload) {
         toast({title: "File Error", description: "Uploaded file data is missing. Please restart order.", variant: "destructive"});
         setError("File data missing. Re-upload required.");
         return;
@@ -96,28 +103,28 @@ function PaymentPageContent() {
 
     try {
       const razorpayOrderResponse = await createRazorpayOrder({
-        amount: orderDetails.totalCost,
-        currency: "INR", 
+        amount: orderDetails.totalCost, // This amount is already validated to be > 0
+        currency: "INR",
       });
 
       if (!razorpayOrderResponse.success || !razorpayOrderResponse.orderId || !razorpayOrderResponse.razorpayKeyId) {
         throw new Error(razorpayOrderResponse.error || "Could not create Razorpay order.");
       }
-      
+
       const rzpKeyId = razorpayOrderResponse.razorpayKeyId;
 
       const options = {
         key: rzpKeyId,
-        amount: razorpayOrderResponse.amount, 
+        amount: razorpayOrderResponse.amount,
         currency: razorpayOrderResponse.currency,
         name: "Xerox2U Print Service",
         description: `Order for ${orderDetails.fileName || 'document print'}`,
         order_id: razorpayOrderResponse.orderId,
         handler: async function (response: RazorpayPaymentDetails) {
-          
+
           const finalPayload: OrderFormPayload = {
-            ...(orderDetails as OrderFormPayload), 
-            fileDataUri: fileDataUriForUpload, 
+            ...(orderDetails as OrderFormPayload),
+            fileDataUri: fileDataUriForUpload,
             paymentMethod: 'razorpay',
             paymentDetails: {
               razorpay_payment_id: response.razorpay_payment_id,
@@ -125,18 +132,18 @@ function PaymentPageContent() {
               razorpay_signature: response.razorpay_signature,
             },
           };
-          
+
           try {
             const submissionResult = await submitOrderToMongoDB(finalPayload);
-            sessionStorage.removeItem('pendingOrderFileDataUri'); 
+            sessionStorage.removeItem('pendingOrderFileDataUri');
 
             if (submissionResult.success && submissionResult.orderId) {
               toast({ title: "Payment Successful & Order Placed!", description: `Order ID: ${submissionResult.orderId.substring(0,8)}...` });
-              
+
               const queryParams = new URLSearchParams({
                 orderId: submissionResult.orderId,
                 deliveryMethod: orderDetails.deliveryMethod!,
-                amount: orderDetails.totalCost!.toFixed(2)
+                amount: orderDetails.totalCost!.toFixed(2) // orderDetails.totalCost is now guaranteed positive
               });
               if (orderDetails.deliveryMethod === 'pickup' && submissionResult.pickupCode) {
                 queryParams.set('pickupCode', submissionResult.pickupCode);
@@ -164,7 +171,7 @@ function PaymentPageContent() {
           deliveryMethod: orderDetails.deliveryMethod,
         },
         theme: {
-          color: "#2E9AFF", 
+          color: "#2E9AFF",
         },
       };
 
@@ -180,7 +187,7 @@ function PaymentPageContent() {
           variant: "destructive",
           duration: 7000,
         });
-        setIsProcessing(false); 
+        setIsProcessing(false);
       });
       rzpInstance.open();
 
@@ -191,7 +198,7 @@ function PaymentPageContent() {
     }
   };
 
-  if (authContext.loading || Object.keys(orderDetails).length === 0 && !error) { 
+  if (authContext.loading || (Object.keys(orderDetails).length === 0 && !error)) {
      return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4">
             <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
@@ -199,7 +206,7 @@ function PaymentPageContent() {
         </div>
      );
   }
-  
+
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-destructive/10 p-4 text-center">
@@ -245,9 +252,9 @@ function PaymentPageContent() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3 pt-2">
-          <Button 
-            onClick={handleRazorpayPayment} 
-            disabled={isProcessing || !authContext.user || !orderDetails.totalCost || (!!orderDetails.fileName && !fileDataUriForUpload)}
+          <Button
+            onClick={handleRazorpayPayment}
+            disabled={isProcessing || !authContext.user || typeof orderDetails.totalCost !== 'number' || isNaN(orderDetails.totalCost) || orderDetails.totalCost <= 0 || (!!orderDetails.fileName && !fileDataUriForUpload)}
             className="w-full bg-green-600 hover:bg-green-700 text-white text-lg py-6 shadow-md"
           >
             {isProcessing ? (
@@ -273,4 +280,3 @@ export default function PaymentPage() {
     </Suspense>
   );
 }
-

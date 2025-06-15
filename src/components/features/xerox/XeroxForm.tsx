@@ -20,12 +20,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Send, CreditCard, ArrowRight, ArrowLeft, PackageCheck, UserCheck } from "lucide-react";
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
-export type SubmissionStatus = 'idle' | 'preparing' | 'navigating' | 'success' | 'error'; 
+export type SubmissionStatus = 'idle' | 'preparing' | 'navigating' | 'success' | 'error';
 type DeliveryMethod = 'pickup' | 'home_delivery';
 type XeroxFormStep = 'upload_settings' | 'delivery_method' | 'delivery_details' | 'summary_payment';
 
 const PICKUP_CENTERS = ["Tenkasi Main Office", "Madurai Branch", "Chennai Hub"];
-const DELIVERY_CHARGE = 40; 
+const DELIVERY_CHARGE = 40;
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024;
 
 function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
@@ -48,7 +48,7 @@ export default function XeroxForm() {
 
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [fileDataUri, setFileDataUri] = useState<string | null>(null); 
+  const [fileDataUri, setFileDataUri] = useState<string | null>(null);
 
   const [numPagesStr, setNumPagesStr] = useState<string>("1");
   const [numCopiesStr, setNumCopiesStr] = useState<string>("1");
@@ -68,7 +68,7 @@ export default function XeroxForm() {
   const [printCost, setPrintCost] = useState<number>(0);
   const [actualDeliveryFee, setActualDeliveryFee] = useState<number>(0);
   const [totalCost, setTotalCost] = useState<number>(0);
-  
+
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formSubmissionStatus, setFormSubmissionStatus] = useState<SubmissionStatus>('idle');
 
@@ -86,8 +86,8 @@ export default function XeroxForm() {
 
     setFile(selectedFile);
     setFileName(selectedFile ? selectedFile.name : null);
-    setFileDataUri(null); 
-  
+    setFileDataUri(null);
+
     if (selectedFile) {
       if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
         toast({
@@ -98,7 +98,7 @@ export default function XeroxForm() {
         setFile(null); setFileName(null); setPageCountStatus('idle'); setNumPagesStr("1");
         return;
       }
-      setPageCountStatus('processing'); setNumPagesStr(""); 
+      setPageCountStatus('processing'); setNumPagesStr("");
       toast({ title: "Processing PDF...", description: "Detecting page count..." });
       try {
         const arrayBuffer = await selectedFile.arrayBuffer();
@@ -106,7 +106,7 @@ export default function XeroxForm() {
         const pageCount = pdfDoc.getPageCount();
         setNumPagesStr(pageCount.toString());
         setPageCountStatus('detected');
-        setFileDataUri(arrayBufferToDataUri(arrayBuffer, selectedFile.type)); 
+        setFileDataUri(arrayBufferToDataUri(arrayBuffer, selectedFile.type));
         toast({ title: "PDF Processed", description: `${pageCount} page(s) found. File ready.` });
       } catch (error) {
         console.error("Failed to process PDF:", error);
@@ -117,7 +117,7 @@ export default function XeroxForm() {
       setNumPagesStr("1"); setPageCountStatus('idle'); setFileDataUri(null);
     }
   };
-  
+
   const calculateCost = useCallback(() => {
     const numP = parseInt(numPagesStr);
     const numC = parseInt(numCopiesStr);
@@ -125,11 +125,11 @@ export default function XeroxForm() {
     if (isNaN(numP) || numP <= 0 || isNaN(numC) || numC <= 0 || pageCountStatus === 'processing') {
       setPrintCost(0); return;
     }
-    let costPerPage = printColor === 'color' ? 0.50 : 0.10; 
+    let costPerPage = printColor === 'color' ? 0.50 : 0.10;
     const paperSizeMultipliers: Record<typeof paperSize, number> = { A4: 1.0, Letter: 1.0, Legal: 1.2 };
     costPerPage *= paperSizeMultipliers[paperSize];
     let currentPrintCost = numP * costPerPage * numC;
-    if (printSides === 'double') currentPrintCost *= 0.9; 
+    if (printSides === 'double') currentPrintCost *= 0.9;
     setPrintCost(currentPrintCost);
   }, [numPagesStr, numCopiesStr, printColor, paperSize, printSides, pageCountStatus]);
 
@@ -146,7 +146,7 @@ export default function XeroxForm() {
   const validateStep1_UploadSettings = () => {
     if (!authContext.user) return false;
     const numP = parseInt(numPagesStr);
-    const isFileValid = !!file && !!fileDataUri; 
+    const isFileValid = !!file && !!fileDataUri;
     return isFileValid && !isNaN(numP) && numP > 0 && pageCountStatus !== 'processing';
   };
 
@@ -183,7 +183,7 @@ export default function XeroxForm() {
     else if (currentStep === 'delivery_details') setCurrentStep('delivery_method');
     else if (currentStep === 'delivery_method') setCurrentStep('upload_settings');
   };
-  
+
   const proceedToPaymentPage = () => {
     if (!authContext.user) {
         toast({ title: "Authentication Required", description: "Please sign in to proceed.", variant: "destructive" });
@@ -195,6 +195,10 @@ export default function XeroxForm() {
     }
     if (!fileDataUri) {
         toast({ title: "File Error", description: "File data is missing. Please re-upload your PDF.", variant: "destructive" });
+        return;
+    }
+     if (isNaN(totalCost) || totalCost <= 0) {
+        toast({ title: "Invalid Order Total", description: "Cannot proceed with zero or invalid cost. Please review settings.", variant: "destructive" });
         return;
     }
 
@@ -226,12 +230,12 @@ export default function XeroxForm() {
     } else if (deliveryMethod === 'pickup') {
         queryParams.set('pickupCenter', selectedPickupCenter);
     }
-    
+
     sessionStorage.setItem('pendingOrderFileDataUri', fileDataUri);
     router.push(`/payment?${queryParams.toString()}`);
   };
 
-  
+
   const getStepTitle = () => {
     switch(currentStep) {
       case 'upload_settings': return "1. Upload & Print Settings";
@@ -257,12 +261,12 @@ export default function XeroxForm() {
           {currentStep === 'upload_settings' && (
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-6">
-                <FileUpload 
-                    onFileChange={handleFileChange} 
-                    fileName={fileName} 
-                    isAuthenticated={!!authContext.user} 
+                <FileUpload
+                    onFileChange={handleFileChange}
+                    fileName={fileName}
+                    isAuthenticated={!!authContext.user}
                 />
-                {file && authContext.user && ( 
+                {file && authContext.user && (
                   <PrintSettings
                     numPages={numPagesStr} setNumPages={setNumPagesStr}
                     pageCountStatus={pageCountStatus}
@@ -275,7 +279,7 @@ export default function XeroxForm() {
                 )}
               </div>
               <div>
-                {file && authContext.user && ( 
+                {file && authContext.user && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-xl font-semibold text-accent">
@@ -338,14 +342,14 @@ export default function XeroxForm() {
                 <DeliveryAddress address={homeDeliveryAddress} setAddress={setHomeDeliveryAddress} />
             </div>
           )}
-          
+
           {currentStep === 'summary_payment' && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-xl font-semibold mb-3 text-accent">Order Summary</h3>
                 <OrderSummary printCost={printCost} deliveryFee={actualDeliveryFee} />
               </div>
-             
+
               {deliveryMethod === 'pickup' && selectedPickupCenter && (
                 <p className="text-sm">Pickup from: <span className="font-medium">{selectedPickupCenter}</span>.</p>
               )}
@@ -358,16 +362,16 @@ export default function XeroxForm() {
                 </div>
               )}
                 {authContext.user ? (
-                <Button 
-                    onClick={proceedToPaymentPage} 
-                    disabled={isSubmitting || !authContext.user}
+                <Button
+                    onClick={proceedToPaymentPage}
+                    disabled={isSubmitting || !authContext.user || totalCost <= 0 || isNaN(totalCost)}
                     className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-base py-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
                 >
                     {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CreditCard className="mr-2 h-5 w-5" /> }
-                    {isSubmitting ? 'Processing...' : 'Proceed to Secure Payment'}
+                    {isSubmitting ? 'Redirecting...' : 'Proceed to Secure Payment'}
                 </Button>
                 ) : (
-                 <Button 
+                 <Button
                     disabled={true}
                     className="w-full text-base py-6 rounded-lg shadow-md"
                     variant="destructive"
@@ -388,8 +392,8 @@ export default function XeroxForm() {
           </Button>
         ) : <div /> }
         {currentStep !== 'summary_payment' && (
-          <Button 
-            onClick={handleNextStep} 
+          <Button
+            onClick={handleNextStep}
             disabled={isSubmitting || (currentStep === 'upload_settings' && (!authContext.user || !validateStep1_UploadSettings())) || (currentStep === 'delivery_details' && (!authContext.user || !validateStep3_DeliveryDetails()))}
             className="ml-auto"
           >
@@ -400,4 +404,3 @@ export default function XeroxForm() {
     </div>
   );
 }
-
