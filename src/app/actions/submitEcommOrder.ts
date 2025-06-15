@@ -28,14 +28,21 @@ const EcommOrderedProductSchema = z.object({
   image: z.string().url().optional().or(z.literal("")),
 });
 
+const RazorpayPaymentDetailsSchema = z.object({
+  razorpay_payment_id: z.string(),
+  razorpay_order_id: z.string(),
+  razorpay_signature: z.string(),
+}).optional();
+
 const EcommOrderPayloadSchema = z.object({
   customerInfo: EcommCustomerInfoSchema,
   orderedProducts: z.array(EcommOrderedProductSchema).min(1, "Order must contain at least one product."),
   totalAmount: z.number().positive("Total amount must be positive."),
-  paymentMethod: z.enum(["cod", "card_placeholder"]),
+  paymentMethod: z.enum(["cod", "razorpay"]), // Updated payment methods
   userId: z.string().optional(),
   userEmail: z.string().email().optional(),
   userName: z.string().optional(),
+  paymentDetails: RazorpayPaymentDetailsSchema, // Added paymentDetails
 });
 
 export type EcommOrderPayload = z.infer<typeof EcommOrderPayloadSchema>;
@@ -46,13 +53,18 @@ export interface EcommOrderMongo {
   customerInfo: EcommCustomerInfoSchema.infer<typeof EcommCustomerInfoSchema>;
   orderedProducts: EcommOrderedProductSchema.infer<typeof EcommOrderedProductSchema>[];
   totalAmount: number;
-  paymentMethod: "cod" | "card_placeholder";
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  paymentMethod: "cod" | "razorpay"; // Updated payment methods
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'paid'; // Added 'paid' status
   createdAt: Date;
   updatedAt: Date;
-  userId?: string; // Added for user tracking
-  userEmail?: string; // Added for user tracking (can override customerInfo.email if user is logged in)
-  userName?: string; // Added for user tracking (can override customerInfo.name if user is logged in)
+  userId?: string; 
+  userEmail?: string; 
+  userName?: string; 
+  paymentDetails?: { // Added paymentDetails
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+  };
 }
 
 export async function submitEcommOrder(
@@ -74,17 +86,15 @@ export async function submitEcommOrder(
     orderedProducts: validatedData.orderedProducts,
     totalAmount: validatedData.totalAmount,
     paymentMethod: validatedData.paymentMethod,
-    status: 'pending', // Initial status
+    status: validatedData.paymentMethod === 'razorpay' && validatedData.paymentDetails ? 'paid' : 'pending', // Set status to 'paid' if Razorpay details exist
     createdAt: new Date(),
     updatedAt: new Date(),
     userId: validatedData.userId,
-    userEmail: validatedData.userEmail, // This will store the authenticated user's email
-    userName: validatedData.userName,   // This will store the authenticated user's name
+    userEmail: validatedData.userEmail,
+    userName: validatedData.userName,
+    paymentDetails: validatedData.paymentDetails, // Store payment details
   };
 
-  // If logged-in user provided details, they might override the form's customerInfo for name/email
-  // but the full address still comes from customerInfo.address
-  // The server action now directly stores userId, userEmail, userName from payload.
 
   console.log("E-commerce order document to be inserted into MongoDB:", JSON.stringify({ _id: newOrderId, ...orderToInsert }, null, 2));
 

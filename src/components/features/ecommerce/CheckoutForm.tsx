@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Phone, Home, Mail, Landmark, ShoppingCart, Loader2 } from "lucide-react";
-import { useEffect } from "react"; // Import useEffect
+import { User, Phone, Home, Mail, Landmark, ShoppingCart, Loader2, CreditCard } from "lucide-react"; // Added CreditCard
+import { useEffect } from "react"; 
 
 const checkoutFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -21,7 +21,7 @@ const checkoutFormSchema = z.object({
   city: z.string().min(2, "City name is too short."),
   postalCode: z.string().min(3, "Postal code is too short."),
   country: z.string().min(2, "Country name is too short."),
-  paymentMethod: z.enum(["cod", "card_placeholder"], {
+  paymentMethod: z.enum(["cod", "razorpay"], { // Changed "card_placeholder" to "razorpay"
     required_error: "Please select a payment method.",
   }),
 });
@@ -31,8 +31,8 @@ export type CheckoutFormData = z.infer<typeof checkoutFormSchema>;
 interface CheckoutFormProps {
   onSubmit: (data: CheckoutFormData) => Promise<void>;
   isSubmitting: boolean;
-  initialEmail?: string; // Optional initial email
-  initialName?: string; // Optional initial name
+  initialEmail?: string; 
+  initialName?: string; 
 }
 
 export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName }: CheckoutFormProps) {
@@ -45,12 +45,11 @@ export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName
       street: "",
       city: "",
       postalCode: "",
-      country: "USA", // Default country
+      country: "India", // Default country
       paymentMethod: "cod",
     },
   });
 
-  // Effect to update form values if initialEmail/initialName changes (e.g., after login)
   useEffect(() => {
     if (initialEmail) {
       form.setValue("email", initialEmail, { shouldValidate: true });
@@ -105,7 +104,7 @@ export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName
                   <FormItem>
                     <FormLabel className="flex items-center"><Phone size={16} className="mr-2"/>Phone Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="+1 (555) 123-4567" {...field} />
+                      <Input placeholder="+91 XXXXX XXXXX" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -146,7 +145,7 @@ export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName
                   <FormItem>
                     <FormLabel>Postal Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="90210" {...field} />
+                      <Input placeholder="e.g. 110001" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -159,7 +158,7 @@ export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName
                   <FormItem>
                     <FormLabel>Country</FormLabel>
                     <FormControl>
-                      <Input placeholder="United States" {...field} />
+                      <Input placeholder="India" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -187,20 +186,20 @@ export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName
                       defaultValue={field.value}
                       className="flex flex-col space-y-2"
                     >
-                      <FormItem className="flex items-center space-x-3 space-y-0 p-3 border rounded-md hover:bg-secondary/50 transition-colors">
+                      <FormItem className="flex items-center space-x-3 space-y-0 p-3 border rounded-md hover:bg-secondary/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
                         <FormControl>
                           <RadioGroupItem value="cod" />
                         </FormControl>
-                        <FormLabel className="font-normal text-base">
+                        <FormLabel className="font-normal text-base cursor-pointer">
                           Cash on Delivery (COD)
                         </FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0 p-3 border rounded-md hover:bg-secondary/50 transition-colors opacity-50 cursor-not-allowed">
+                      <FormItem className="flex items-center space-x-3 space-y-0 p-3 border rounded-md hover:bg-secondary/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
                         <FormControl>
-                          <RadioGroupItem value="card_placeholder" disabled />
+                          <RadioGroupItem value="razorpay"/>
                         </FormControl>
-                        <FormLabel className="font-normal text-base">
-                          Credit/Debit Card (Coming Soon)
+                        <FormLabel className="font-normal text-base cursor-pointer flex items-center">
+                          <CreditCard size={18} className="mr-2 text-primary"/> Credit/Debit Card / UPI / NetBanking
                         </FormLabel>
                       </FormItem>
                     </RadioGroup>
@@ -210,7 +209,7 @@ export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName
               )}
             />
              <p className="text-xs text-muted-foreground mt-4 text-center">
-                Secure payment processing is under development. Only Cash on Delivery is currently available.
+                Online payments powered by Razorpay.
             </p>
           </CardContent>
         </Card>
@@ -221,7 +220,7 @@ export function CheckoutForm({ onSubmit, isSubmitting, initialEmail, initialName
           ) : (
             <ShoppingCart className="mr-2 h-6 w-6" />
           )}
-          {isSubmitting ? "Processing Order..." : "Place Order"}
+          {isSubmitting ? "Processing..." : (form.getValues("paymentMethod") === "razorpay" ? "Proceed to Pay Securely" : "Place Order (COD)")}
         </Button>
       </form>
     </Form>

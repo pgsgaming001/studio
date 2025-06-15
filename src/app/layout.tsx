@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { CartProvider } from '@/context/CartContext';
 import { AuthProvider } from '@/context/AuthContext'; // Import AuthProvider
 import { Header } from '@/components/layout/Header';
+import Script from 'next/script'; // Import Script
 
 export const metadata: Metadata = {
   title: 'Xerox2U',
@@ -35,6 +36,7 @@ export default function RootLayout({
             <Toaster />
           </CartProvider>
         </AuthProvider>
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       </body>
     </html>
   );
