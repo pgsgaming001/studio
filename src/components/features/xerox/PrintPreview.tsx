@@ -150,16 +150,16 @@ export function PrintPreview({
     const numSheets = parseInt(numCopies) || 1;
 
     if (photoType === 'passport') {
-      const photosPerSheet = 8; 
       return (
         <div className="space-y-3">
-          {/* Updated Passport Photo Preview Grid */}
+          {/* Passport sheet: 4‑by‑6 in portrait → ratio 2 : 3 */}
           <div
             className="mx-auto w-full max-w-[240px] aspect-[2/3] p-1 
                        grid grid-cols-2 gap-0.5 rounded-md border bg-muted shadow-sm"
             aria-label="Passport photo sheet preview"
           >
-            {Array.from({ length: photosPerSheet }).map((_, i) => (
+            {Array.from({ length: 8 }).map((_, i) => (
+              /* One passport photo: 2‑by‑2.5 in → ratio 4 : 5 */
               <div
                 key={`passport-preview-${i}`}
                 className="relative overflow-hidden aspect-[4/5] bg-background"
@@ -168,15 +168,14 @@ export function PrintPreview({
                   src={fileDataUri}
                   alt={`Passport photo ${i + 1}`}
                   fill
-                  sizes="(max-width: 240px) 50vw, 120px" // Adjusted sizes based on max-w of container
+                  sizes="(max-width: 240px) 50vw, 120px"
                   className="object-cover"
                 />
               </div>
             ))}
           </div>
-          {/* End of Updated Passport Photo Preview Grid */}
           <p className="text-xs text-center text-muted-foreground">
-            {numSheets} sheet(s), {photosPerSheet} photos per sheet.
+            {numSheets} sheet(s), 8 photos per sheet.
           </p>
           <p className="text-xs text-center text-muted-foreground">
             <Maximize size={12} className="inline mr-1"/>Ensure uploaded image is suitable for passport photos.
