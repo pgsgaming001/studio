@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ProductDisplayData } from '@/app/actions/getProductById';
@@ -77,7 +78,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             />
           </div>
           <div>
-            <p className="text-sm font-medium">${product.price.toFixed(2)}</p>
+            <p className="text-sm font-medium">₹{product.price.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">Quantity: {quantity}</p>
           </div>
         </div>

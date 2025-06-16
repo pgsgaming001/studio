@@ -268,7 +268,7 @@ export default function CheckoutPage() {
                     <p className="font-medium text-card-foreground truncate w-40" title={item.name}>{item.name}</p>
                     <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                   </div>
-                  <p className="font-semibold text-foreground">₹{(item.price * item.quantity).toFixed(2)}</p> {/* Assuming INR */}
+                  <p className="font-semibold text-foreground">₹{(item.price * item.quantity).toFixed(2)}</p>
                 </div>
               ))}
               <Separator />

@@ -222,12 +222,12 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <Label htmlFor="price">Price ($)</Label>
+              <Label htmlFor="price">Price (₹)</Label>
               <Input id="price" type="number" step="0.01" {...register("price")} placeholder="e.g., 99.99" className={errors.price ? "border-destructive" : ""} />
               {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
             </div>
             <div>
-              <Label htmlFor="originalPrice">Original Price ($) (Optional)</Label>
+              <Label htmlFor="originalPrice">Original Price (₹) (Optional)</Label>
               <Input id="originalPrice" type="number" step="0.01" {...register("originalPrice")} placeholder="e.g., 129.99" className={errors.originalPrice ? "border-destructive" : ""} />
               {errors.originalPrice && <p className="text-sm text-destructive mt-1">{errors.originalPrice.message}</p>}
             </div>

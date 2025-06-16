@@ -259,7 +259,7 @@ export default function EcommerceDashboardPage() {
               <DollarSign className="h-5 w-5 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">${summaryData.totalSalesMonth.toFixed(2)}</div>
+              <div className="text-3xl font-bold">₹{summaryData.totalSalesMonth.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">All time sales</p>
             </CardContent>
           </Card>
@@ -322,7 +322,7 @@ export default function EcommerceDashboardPage() {
                           <TableCell className="px-3 py-3">
                             <Badge variant="secondary">{product.category}</Badge>
                           </TableCell>
-                          <TableCell className="text-right px-3 py-3">${product.price.toFixed(2)}</TableCell>
+                          <TableCell className="text-right px-3 py-3">₹{product.price.toFixed(2)}</TableCell>
                           <TableCell className="text-center px-3 py-3">{product.stock ?? 'N/A'}</TableCell>
                           <TableCell className="px-3 py-3">
                             <Badge 
@@ -395,7 +395,7 @@ export default function EcommerceDashboardPage() {
                           <TableCell className="px-3 py-3 text-sm text-muted-foreground truncate max-w-xs" title={order.orderedProductsSummary}>
                             {order.orderedProductsSummary}
                           </TableCell>
-                          <TableCell className="text-right font-semibold px-3 py-3">${order.totalAmount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-semibold px-3 py-3">₹{order.totalAmount.toFixed(2)}</TableCell>
                           <TableCell className="px-3 py-3 capitalize">
                             <Badge variant={order.paymentMethod === 'cod' ? 'secondary' : 'outline'}>
                               {order.paymentMethod === 'cod' ? 'COD' : 'Card'}

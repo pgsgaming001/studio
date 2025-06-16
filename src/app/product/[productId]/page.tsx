@@ -217,10 +217,10 @@ export default function ProductPage() {
           </div>
 
           <p className="text-3xl font-semibold text-foreground">
-            ${product.price.toFixed(2)}
+            ₹{product.price.toFixed(2)}
             {product.originalPrice && product.originalPrice > product.price && (
               <span className="ml-2 text-xl text-muted-foreground line-through">
-                ${product.originalPrice.toFixed(2)}
+                ₹{product.originalPrice.toFixed(2)}
               </span>
             )}
           </p>
