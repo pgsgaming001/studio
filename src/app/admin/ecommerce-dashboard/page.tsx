@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { getProducts, type ProductSummary } from "@/app/actions/getProducts";
 import { getEcommOrdersFromMongoDB, type EcommOrderDisplayData, type EcommOrderStatus } from "@/app/actions/getEcommOrders";
 import { updateEcommOrderStatus } from "@/app/actions/updateEcommOrderStatus";
-import { deleteProduct } from "@/app/actions/deleteProduct"; // Import deleteProduct action
+import { deleteProduct } from "@/app/actions/deleteProduct";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -27,7 +27,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"; // Import AlertDialog components
+} from "@/components/ui/alert-dialog";
 
 const VALID_ECOMM_STATUSES: EcommOrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 const ADMIN_EMAIL = 'pgsgaming001@gmail.com';
@@ -51,7 +51,6 @@ export default function EcommerceDashboardPage() {
 
   const [summaryData, setSummaryData] = useState(initialEcommerceSummary);
 
-  // State for delete confirmation dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [productToDelete, setProductToDelete] = useState<ProductSummary | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -122,8 +121,7 @@ export default function EcommerceDashboardPage() {
   }, [authContext.loading, authContext.user, router, toast]);
 
   const handleEditProduct = (productId: string) => {
-    toast({ title: "Edit Product (WIP)", description: `Navigation to edit product ID: ${productId.substring(0,8)}... will be implemented soon.` });
-    // router.push(`/admin/ecommerce-dashboard/edit-product/${productId}`); // Future: Implement this page
+    router.push(`/admin/ecommerce-dashboard/edit-product/${productId}`);
   };
 
   const handleDeleteProductClick = (product: ProductSummary) => {
@@ -142,7 +140,6 @@ export default function EcommerceDashboardPage() {
           description: `Product "${productToDelete.name}" has been successfully deleted.`,
         });
         setProducts(prevProducts => prevProducts.filter(p => p.id !== productToDelete.id));
-        // Recalculate summary data if needed, e.g., totalActiveProducts
          setSummaryData(prev => ({
             ...prev,
             totalActiveProducts: products.filter(p => p.id !== productToDelete.id && p.status === 'active').length
@@ -447,7 +444,6 @@ export default function EcommerceDashboardPage() {
           </Card>
         </section>
       </div>
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
