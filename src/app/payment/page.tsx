@@ -219,30 +219,30 @@ function PaymentPageContent() {
               router.push(`/order-confirmation?${queryParams.toString()}`);
 
             } else {
-              let detailedError = submissionResult.error || "Failed to save order after payment. Please contact support.";
-              if (submissionResult.error && submissionResult.error.includes("storage/unauthorized")) {
-                  detailedError = `Order data could not be saved due to a file permission error. This often means the storage security rules in your Firebase project need adjustment to allow uploads for authenticated users (e.g., allow write: if request.auth != null && request.auth.uid == userId; on the 'user_uploads/{userId}/*' path). Please check your Firebase Storage rules in the Firebase Console. Original error: ${submissionResult.error}`;
-              }
-              // This throw is caught by the outer catch block of the handler
-              throw new Error(detailedError);
+              // This is the specific error handling block from the console log in the user prompt
+              const detailedErrorFromServer = submissionResult.error || "Failed to save order after payment. Please contact support.";
+              throw new Error(detailedErrorFromServer);
             }
           } catch (e: any) {
+            // This catch block handles errors from submitOrderToMongoDB or the re-thrown error above.
             console.error("PaymentPage: Order submission to MongoDB failed after payment. Full error:", e);
             
-            let displayErrorMessage = "Order submission failed after successful payment. Please contact support with your payment details.";
-            const rawErrorMessage = typeof e?.message === 'string' ? e.message : "An unknown error occurred during order saving.";
+            let uiErrorMessage = "Order saving failed. Please contact support with payment details.";
+            const rawErrorMessage = typeof e?.message === 'string' ? e.message : "Unknown error saving order.";
 
             if (rawErrorMessage.includes("storage/unauthorized") || rawErrorMessage.includes("file permission error")) {
-                displayErrorMessage = "File upload permission denied. Please check Firebase Storage rules or contact support.";
-                // The detailed console log with instructions is already part of rawErrorMessage if it's the specific case.
+                // Log the detailed message for developer console
+                console.error(`Detailed Storage Error: ${rawErrorMessage}`);
+                // Set a very simple message for UI state and toast
+                uiErrorMessage = "File upload permission error. Check Firebase rules or contact support.";
             } else {
-                displayErrorMessage = rawErrorMessage; 
+                uiErrorMessage = rawErrorMessage.length > 150 ? "Order saving failed. See console for details or contact support." : rawErrorMessage; 
             }
 
-            setError(displayErrorMessage);
+            setError(uiErrorMessage);
             toast({
                 title: "Order Saving Failed",
-                description: displayErrorMessage,
+                description: uiErrorMessage,
                 variant: "destructive",
                 duration: 10000, 
             });
@@ -419,3 +419,4 @@ export default function PaymentPage() {
     </Suspense>
   );
 }
+
