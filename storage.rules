@@ -4,34 +4,40 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Rules for product images uploaded by admins/editors
+    // Rules for product images (e-commerce part, likely uploaded by admin)
+    // Your previous rule: allow write: if true; -- THIS IS INSECURE.
+    // Recommendation: Restrict write access to authenticated admins.
+    // Example for admin check (requires user custom claims or Firestore roles):
+    // allow write: if request.auth != null && request.auth.token.admin == true;
     match /product_images/{productId}/{allPaths=**} {
-      // Product images should generally be publicly readable
-      allow read: if true;
-
-      // Allow write only if a user is authenticated.
-      // IMPORTANT: For a production app, you would typically restrict this further
-      // to users with specific admin roles, not just any authenticated user.
-      // This change addresses the "DANGER" sign on 'allow write: if true;'.
-      allow write: if request.auth != null;
+      allow read: if true; // Product images are generally public
+      allow write: if request.auth != null; // CHANGED: Requires authentication. Refine further for admin-only.
     }
 
-    // Rules for PDF documents uploaded by users for the print service
+    // Rules for files (PDFs, images) uploaded by users for the print/photo service
+    // This path is used by the `submitOrderToMongoDB` action in your application.
+    match /user_uploads/{userId}/{allPaths=**} {
+      // Allow an authenticated user to read and write to their own folder
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // The path /user_documents/ was in your provided rules example.
+    // Your application code (submitOrderToMongoDB) currently uses /user_uploads/.
+    // If /user_documents/ is still needed for other purposes, apply specific and secure rules.
+    // If it's no longer used, this rule block can be removed to keep rules clean.
     match /user_documents/{orderId}/{allPaths=**} {
-      // Allow read if true for now, as download URLs might be generated and accessed.
-      // For stricter security, you could restrict this to the user who uploaded
-      // or to authenticated admins retrieving orders.
-      allow read: if true; // Or 'if request.auth != null;' for more restriction
-
-      // Allow write only if a user is authenticated. This allows users
-      // to upload their documents for printing when placing an order.
-      allow write: if request.auth != null;
+      allow read: if true; // Example: if public or order owner
+      allow write: if request.auth != null; // Example: if relevant user or admin. 'if true;' is insecure.
     }
 
-    // Add other specific paths and their rules here as needed.
-    // For example, if you have user profile pictures:
+    // Default deny: It's good practice to ensure that any path not explicitly
+    // matched by the rules above is denied access. Firebase Storage rules
+    // have an implicit deny if no allow rule matches.
+
+    // Example for user profile pictures (if you add this feature):
     // match /user_profiles/{userId}/{allPaths=**} {
-    //   allow read: if true;
+    //   allow read: if true; // Or if request.auth != null && request.auth.uid == userId;
     //   allow write: if request.auth != null && request.auth.uid == userId;
     // }
   }

@@ -223,12 +223,29 @@ function PaymentPageContent() {
               if (submissionResult.error && submissionResult.error.includes("storage/unauthorized")) {
                   detailedError = `Order data could not be saved due to a file permission error. This often means the storage security rules in your Firebase project need adjustment to allow uploads for authenticated users (e.g., allow write: if request.auth != null && request.auth.uid == userId; on the 'user_uploads/{userId}/*' path). Please check your Firebase Storage rules in the Firebase Console. Original error: ${submissionResult.error}`;
               }
+              // This throw is caught by the outer catch block of the handler
               throw new Error(detailedError);
             }
           } catch (e: any) {
-            console.error("PaymentPage: Order submission to MongoDB failed after payment:", e);
-            setError(e.message || "Order submission failed after successful payment. Contact support.");
-            toast({ title: "Order Submission Failed Post-Payment", description: e.message, variant: "destructive", duration: 15000 });
+            console.error("PaymentPage: Order submission to MongoDB failed after payment. Full error:", e);
+            
+            let displayErrorMessage = "Order submission failed after successful payment. Please contact support with your payment details.";
+            const rawErrorMessage = typeof e?.message === 'string' ? e.message : "An unknown error occurred during order saving.";
+
+            if (rawErrorMessage.includes("storage/unauthorized") || rawErrorMessage.includes("file permission error")) {
+                displayErrorMessage = "File upload permission denied. Please check Firebase Storage rules or contact support.";
+                // The detailed console log with instructions is already part of rawErrorMessage if it's the specific case.
+            } else {
+                displayErrorMessage = rawErrorMessage; 
+            }
+
+            setError(displayErrorMessage);
+            toast({
+                title: "Order Saving Failed",
+                description: displayErrorMessage,
+                variant: "destructive",
+                duration: 10000, 
+            });
           } finally {
             setIsProcessing(false); 
           }
@@ -274,9 +291,10 @@ function PaymentPageContent() {
       console.log("PaymentPage: Razorpay modal opened.");
 
     } catch (e: any) {
-      console.error("PaymentPage: Error in handleRazorpayPayment (catch block):", e);
-      setError(e.message || "An unexpected error occurred during payment initiation.");
-      toast({ title: "Payment Initialization Failed", description: e.message, variant: "destructive", duration: 8000 });
+      console.error("PaymentPage: Error in handleRazorpayPayment (outer catch block for Razorpay setup):", e);
+      const errorMessage = typeof e?.message === 'string' ? e.message : "An unexpected error occurred during payment initiation.";
+      setError(errorMessage);
+      toast({ title: "Payment Initialization Failed", description: errorMessage, variant: "destructive", duration: 8000 });
       setIsProcessing(false); 
     }
   };
@@ -350,7 +368,7 @@ function PaymentPageContent() {
             {orderDetails.serviceType === 'photo' && (
               <>
                 <p>Photo Type: {orderDetails.photoType === '4x6_inch' ? '4x6 Inch (Color)' : 'Passport Photos (Color)'}</p>
-                <p>Number of {orderDetails.photoType === 'passport' ? 'Individual Photos' : '4x6 Prints'}: {orderDetails.numCopies || 'N/A'}</p>
+                <p>Number of {orderDetails.photoType === 'passport' ? 'Individual Passport Photos' : '4x6 Inch Prints'}: {orderDetails.numCopies || 'N/A'}</p>
               </>
             )}
 
@@ -401,5 +419,3 @@ export default function PaymentPage() {
     </Suspense>
   );
 }
-
-
