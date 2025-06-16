@@ -3,20 +3,20 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileWarning, Printer, Image as ImageIcon, Maximize } from "lucide-react";
-import Image from "next/image"; 
+import Image from "next/image";
 import type { ServiceType, PhotoType } from "./XeroxForm";
 
 interface PrintPreviewProps {
   serviceType: ServiceType;
   fileName: string | null;
-  fileDataUri?: string | null; 
+  fileDataUri?: string | null;
   // Document specific
   numPages: string;
   printSides: 'single' | 'double';
   layout: '1up' | '2up';
   // Photo specific
   photoType: PhotoType;
-  numCopies: string; 
+  numCopies: string;
 }
 
 export function PrintPreview({
@@ -136,7 +136,7 @@ export function PrintPreview({
       </div>
     );
 
-  } else { 
+  } else {
     if (!fileName || !fileDataUri) {
       return (
         <div className="flex flex-col items-center justify-center text-center p-6 border-2 border-dashed rounded-lg bg-card text-muted-foreground min-h-[200px]">
@@ -152,23 +152,21 @@ export function PrintPreview({
     if (photoType === 'passport') {
       return (
         <div className="space-y-3">
-          {/* Passport sheet: 4‑by‑6 in portrait → ratio 2 : 3. Container background changed to white for true white gaps. */}
           <div
-            className="mx-auto w-full max-w-[240px] aspect-[2/3] p-1 
-                       grid grid-cols-2 gap-0.5 bg-white" 
+            className="mx-auto w-full max-w-[240px] aspect-[2/3] p-1
+                       grid grid-cols-2 gap-0.5 rounded-md border bg-muted shadow-sm"
             aria-label="Passport photo sheet preview"
           >
             {Array.from({ length: 8 }).map((_, i) => (
-              /* One passport photo: e.g., 2‑by‑2.5 in → ratio 4 : 5. Or use common 35mm x 45mm which is 7:9. Here we use 4:5 */
               <div
-                key={`passport-preview-${i}`}
-                className="relative overflow-hidden aspect-[4/5] bg-background" /* bg-background for individual photo slot if needed, or can be transparent */
+                key={i}
+                className="relative overflow-hidden aspect-[4/5] bg-background"
               >
                 <Image
                   src={fileDataUri}
-                  alt={`Passport photo ${i + 1}`}
+                  alt={`Passport photo ${i + 1} preview`}
                   fill
-                  sizes="(max-width: 240px) 50vw, 120px" /* Approx 120px width per photo in a 240px container */
+                  sizes="(max-width: 240px) 50vw, 120px"
                   className="object-cover"
                 />
               </div>
@@ -190,7 +188,7 @@ export function PrintPreview({
               src={fileDataUri}
               alt={fileName || "4x6 photo preview"}
               fill
-              className="object-contain" 
+              className="object-contain"
               sizes="(max-width: 768px) 100vw, 50vw"
             />
           </div>
