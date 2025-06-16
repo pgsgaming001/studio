@@ -136,7 +136,7 @@ export function PrintPreview({
       </div>
     );
 
-  } else {
+  } else { // Photo Service Type
     if (!fileName || !fileDataUri) {
       return (
         <div className="flex flex-col items-center justify-center text-center p-6 border-2 border-dashed rounded-lg bg-card text-muted-foreground min-h-[200px]">
@@ -153,21 +153,21 @@ export function PrintPreview({
       return (
         <div className="space-y-3">
           <div
-            className="mx-auto w-full max-w-[240px] aspect-[2/3] p-1
-                       grid grid-cols-2 gap-0.5 rounded-md border bg-muted shadow-sm"
+            className="mx-auto w-full max-w-[240px] aspect-[2/3] p-1.5 
+                       grid grid-cols-2 gap-1.5 rounded-lg border bg-muted shadow-sm"
             aria-label="Passport photo sheet preview"
           >
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="relative overflow-hidden aspect-[4/5] bg-background"
+                className="relative overflow-hidden aspect-[4/5] bg-background rounded-md" // Photo slots are white and rounded
               >
                 <Image
-                  src={fileDataUri}
-                  alt={`Passport photo ${i + 1} preview`}
+                  src={fileDataUri} // User's uploaded image
+                  alt={`Uploaded image for passport photo ${i + 1}`}
                   fill
                   sizes="(max-width: 240px) 50vw, 120px"
-                  className="object-cover"
+                  className="object-cover" // Center-crops the image
                 />
               </div>
             ))}
@@ -176,7 +176,7 @@ export function PrintPreview({
             {numSheets} sheet(s), 8 photos per sheet.
           </p>
           <p className="text-xs text-center text-muted-foreground">
-            <Maximize size={12} className="inline mr-1"/>Ensure uploaded image is suitably framed for passport photos. Preview shows center-crop.
+            <Maximize size={12} className="inline mr-1"/>Ensure uploaded image is suitably framed. Preview shows center-crop.
           </p>
         </div>
       );
@@ -188,7 +188,7 @@ export function PrintPreview({
               src={fileDataUri}
               alt={fileName || "4x6 photo preview"}
               fill
-              className="object-contain"
+              className="object-contain" // Use object-contain for 4x6 to show the whole image
               sizes="(max-width: 768px) 100vw, 50vw"
             />
           </div>
