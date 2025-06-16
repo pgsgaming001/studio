@@ -23,9 +23,11 @@ export function PrintPreview({
   serviceType,
   fileName,
   fileDataUri,
+  // Document specific
   numPages,
   printSides,
   layout,
+  // Photo specific
   photoType,
   numCopies
 }: PrintPreviewProps) {
@@ -152,18 +154,19 @@ export function PrintPreview({
       return (
         <div className="space-y-3">
           <div
-            className="mx-auto w-full max-w-[240px] aspect-[4/6] p-1 border bg-muted rounded-md shadow-sm grid grid-cols-2 gap-1"
+            className="mx-auto w-full max-w-[200px] p-1 border bg-muted rounded-md shadow-sm grid grid-cols-2 gap-0.5"
             aria-label="Passport photo sheet preview"
             title="Preview of 8 passport photos on a 4x6 sheet"
+            style={{ aspectRatio: '4 / 6' }} // Enforce 4x6 aspect ratio for the container
           >
             {Array.from({ length: photosPerSheet }).map((_, index) => (
-              <div key={`passport-preview-${index}`} className="relative aspect-[3/4] bg-background overflow-hidden border border-muted-foreground/20">
+              <div key={`passport-preview-${index}`} className="relative bg-background overflow-hidden border-transparent" style={{aspectRatio: '3 / 4'}}>
                 <Image
                   src={fileDataUri}
                   alt={`Passport photo ${index + 1}`}
                   fill
-                  className="object-cover"
-                  sizes="(max-width: 240px) 50vw, 120px" // Approximate size for the small previews
+                  className="object-cover" // This ensures center-crop and fit
+                  sizes="(max-width: 200px) 25vw, 100px"
                 />
               </div>
             ))}
@@ -184,7 +187,7 @@ export function PrintPreview({
               src={fileDataUri}
               alt={fileName || "4x6 photo preview"}
               fill
-              className="object-contain" // Use contain for 4x6 to show the whole image
+              className="object-contain" // For 4x6, contain might be better to show the whole image
               sizes="(max-width: 768px) 100vw, 50vw"
             />
           </div>
@@ -196,4 +199,3 @@ export function PrintPreview({
     }
   }
 }
-
