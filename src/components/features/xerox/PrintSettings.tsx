@@ -23,7 +23,7 @@ interface PrintSettingsProps {
   photoType: PhotoType;
   setPhotoType: (value: PhotoType) => void;
   // Common
-  numCopies: string; // Represents copies of document set, or number of photo prints/sheets
+  numCopies: string; 
   setNumCopies: (value: string) => void;
   printColor: 'color' | 'bw';
   setPrintColor: (value: 'color' | 'bw') => void;
@@ -64,10 +64,10 @@ export function PrintSettings({
   };
 
   const numCopiesLabel = serviceType === 'document' 
-    ? "Number of Copies" 
+    ? "Number of Copies (of Document Set)" 
     : photoType === 'passport' 
-      ? "Number of Passport Photo Sheets (8 photos/sheet)" 
-      : "Number of 4x6 Prints";
+      ? "Number of Passport Photos (e.g., 4, 8, 12)" 
+      : "Number of 4x6 Inch Prints";
 
   return (
     <div className="space-y-6">
@@ -168,8 +168,8 @@ export function PrintSettings({
                 <SelectValue placeholder="Select photo type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="4x6_inch">4x6 Inch Print</SelectItem>
-                <SelectItem value="passport">Passport Photos (8 on a 4x6 sheet)</SelectItem>
+                <SelectItem value="4x6_inch">4x6 Inch Print (Color)</SelectItem>
+                <SelectItem value="passport">Passport Photos (8 on a 4x6 sheet, Color)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -178,28 +178,35 @@ export function PrintSettings({
               <Award size={16} className="text-primary"/>
               <span className="font-medium">{numCopiesLabel}</span>
             </Label>
-            <Input id="num-prints-photo" type="number" min="1" value={numCopies} onChange={(e) => setNumCopies(e.target.value)} placeholder="e.g., 1" />
+            <Input id="num-prints-photo" type="number" min="1" value={numCopies} onChange={(e) => setNumCopies(e.target.value)} placeholder="e.g., 8 for passport, 1 for 4x6" />
           </div>
         </>
       )}
 
-      {/* Common setting for both document and photo */}
-      <div>
-        <Label className="flex items-center space-x-2 mb-2">
-          <Palette size={16} className="text-primary"/>
-          <span className="font-medium">Print Color</span>
-        </Label>
-        <RadioGroup value={printColor} onValueChange={(value: 'color' | 'bw') => setPrintColor(value)} className="flex space-x-4 pt-1">
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="bw" id="bw" />
-            <Label htmlFor="bw" className="font-normal">Black & White</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="color" id="color" />
-            <Label htmlFor="color" className="font-normal">Color</Label>
-          </div>
-        </RadioGroup>
-      </div>
+      {/* Common setting for document printing only */}
+      {serviceType === 'document' && (
+        <div>
+            <Label className="flex items-center space-x-2 mb-2">
+            <Palette size={16} className="text-primary"/>
+            <span className="font-medium">Print Color</span>
+            </Label>
+            <RadioGroup value={printColor} onValueChange={(value: 'color' | 'bw') => setPrintColor(value)} className="flex space-x-4 pt-1">
+            <div className="flex items-center space-x-2">
+                <RadioGroupItem value="bw" id="bw" />
+                <Label htmlFor="bw" className="font-normal">Black & White</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+                <RadioGroupItem value="color" id="color" />
+                <Label htmlFor="color" className="font-normal">Color</Label>
+            </div>
+            </RadioGroup>
+        </div>
+      )}
+       {serviceType === 'photo' && (
+         <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <Palette size={16} className="text-primary"/> All photos are printed in Color.
+         </p>
+       )}
     </div>
   );
 }

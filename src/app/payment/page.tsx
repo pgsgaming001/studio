@@ -28,20 +28,17 @@ function PaymentPageContent() {
   const authContext = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Initialize orderDetails with all potential fields for type safety
   const [orderDetails, setOrderDetails] = useState<Partial<OrderFormPayload & { totalCost: number }>>({
-    serviceType: 'document', // Default or to be overridden
+    serviceType: 'document', 
     fileName: null,
     numCopies: "1",
-    printColor: 'bw',
+    printColor: 'bw', // Default for documents, will be 'color' for photos
     totalCost: 0,
     deliveryMethod: 'pickup',
-    // Document specific
     numPages: "1",
     paperSize: 'A4',
     printSides: 'single',
     layout: '1up',
-    // Photo specific
     photoType: '4x6_inch',
   });
   const [fileDataUriForUpload, setFileDataUriForUpload] = useState<string | null>(null);
@@ -69,7 +66,7 @@ function PaymentPageContent() {
     }
 
     if (parsedCost < MINIMUM_ORDER_AMOUNT) {
-        const errorMsg = `Order total (₹${parsedCost.toFixed(2)}) is below the minimum required amount of ₹${MINIMUM_ORDER_AMOUNT.toFixed(2)}. Please add more items or adjust your order.`;
+        const errorMsg = `Order total (₹${parsedCost.toFixed(2)}) is below the minimum required amount of ₹${MINIMUM_ORDER_AMOUNT.toFixed(2)}. Please adjust your order.`;
         console.warn("PaymentPage: Order amount too low - ", errorMsg);
         setError(errorMsg); 
         toast({title: "Order Amount Too Low", description: errorMsg, variant: "destructive", duration: 10000});
@@ -92,8 +89,8 @@ function PaymentPageContent() {
     setOrderDetails({
         serviceType: params.serviceType as ServiceType || 'document',
         fileName: params.fileName || null,
-        numCopies: params.numCopies || "1",
-        printColor: params.printColor as 'color' | 'bw' || 'bw',
+        numCopies: params.numCopies || "1", // For docs: sets; for passport: individual photos; for 4x6: prints
+        printColor: params.serviceType === 'photo' ? 'color' : (params.printColor as 'color' | 'bw' || 'bw'), // Photos always color
         totalCost: parsedCost,
         deliveryMethod: params.deliveryMethod as 'pickup' | 'home_delivery' || 'pickup',
         deliveryAddress: {
@@ -107,12 +104,10 @@ function PaymentPageContent() {
         userId: params.userId,
         userEmail: params.userEmail,
         userName: params.userName,
-        // Document specific from params
         numPages: params.serviceType === 'document' ? params.numPages : undefined,
         paperSize: params.serviceType === 'document' ? params.paperSize as 'A4' | 'Letter' | 'Legal' : undefined,
         printSides: params.serviceType === 'document' ? params.printSides as 'single' | 'double' : undefined,
         layout: params.serviceType === 'document' ? params.layout as '1up' | '2up' : undefined,
-        // Photo specific from params
         photoType: params.serviceType === 'photo' ? params.photoType as PhotoType : undefined,
     });
     console.log("PaymentPage: Order details successfully initialized from query params:", { serviceType: params.serviceType, totalCost: parsedCost, deliveryMethod: params.deliveryMethod });
@@ -179,7 +174,7 @@ function PaymentPageContent() {
           console.log("PaymentPage: Razorpay payment successful. Response:", response);
           
           const finalPayload: OrderFormPayload = {
-            ...(orderDetails as OrderFormPayload), // Cast needed due to Partial state
+            ...(orderDetails as OrderFormPayload), 
             fileDataUri: fileDataUriForUpload,
             paymentMethod: 'razorpay', 
             paymentDetails: {
@@ -187,8 +182,9 @@ function PaymentPageContent() {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_signature: response.razorpay_signature,
             },
+            printColor: orderDetails.serviceType === 'photo' ? 'color' : orderDetails.printColor!, // Photos always color
           };
-          // Ensure serviceType specific fields are correctly set based on orderDetails.serviceType
+          
           if (orderDetails.serviceType === 'document') {
             finalPayload.photoType = undefined;
           } else {
@@ -203,9 +199,10 @@ function PaymentPageContent() {
             console.log("PaymentPage: Submitting order to MongoDB with payload:", {...finalPayload, fileDataUri: finalPayload.fileDataUri ? 'PRESENT' : 'ABSENT'});
             const submissionResult = await submitOrderToMongoDB(finalPayload);
             console.log("PaymentPage: MongoDB submission result:", submissionResult);
-            sessionStorage.removeItem('pendingOrderFileDataUri'); 
+            
 
             if (submissionResult.success && submissionResult.orderId) {
+              sessionStorage.removeItem('pendingOrderFileDataUri'); 
               toast({ title: "Payment Successful & Order Placed!", description: `Order ID: ${submissionResult.orderId.substring(0,8)}...` });
 
               const queryParams = new URLSearchParams({
@@ -287,7 +284,7 @@ function PaymentPageContent() {
                          (!!orderDetails.fileName && !fileDataUriForUpload) || 
                          !!error; 
 
-  if (authContext.loading || (Object.keys(orderDetails).length === 0 && !error && typeof window !== 'undefined' && !orderDetails.totalCost)) { // Check orderDetails.totalCost
+  if (authContext.loading || (Object.keys(orderDetails).length === 0 && !error && typeof window !== 'undefined' && !orderDetails.totalCost)) { 
      return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4">
             <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
@@ -347,9 +344,8 @@ function PaymentPageContent() {
             )}
             {orderDetails.serviceType === 'photo' && (
               <>
-                <p>Photo Type: {orderDetails.photoType === '4x6_inch' ? '4x6 Inch' : 'Passport Photos'}</p>
-                <p>Prints/Sheets: {orderDetails.numCopies || 'N/A'}</p>
-                <p>Color: {orderDetails.printColor || 'N/A'}</p>
+                <p>Photo Type: {orderDetails.photoType === '4x6_inch' ? '4x6 Inch (Color)' : 'Passport Photos (Color)'}</p>
+                <p>Number of {orderDetails.photoType === 'passport' ? 'Individual Photos' : '4x6 Prints'}: {orderDetails.numCopies || 'N/A'}</p>
               </>
             )}
 

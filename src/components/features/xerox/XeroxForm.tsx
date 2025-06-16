@@ -32,6 +32,15 @@ const DELIVERY_CHARGE = 40;
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB for PDFs
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB for images
 
+// Pricing (Example - adjust as needed)
+const DOC_COST_PER_PAGE_BW = 0.10;
+const DOC_COST_PER_PAGE_COLOR = 0.50;
+const DOC_PAPER_SIZE_MULTIPLIERS = { A4: 1.0, Letter: 1.0, Legal: 1.2 };
+const DOC_DOUBLE_SIDED_DISCOUNT = 0.9; // 10% discount
+
+const PHOTO_PASSPORT_SHEET_PRICE_COLOR = 25; // For a sheet of 8 passport photos
+const PHOTO_4x6_PRINT_PRICE_COLOR = 12;    // Per 4x6 inch print
+
 function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
   let binary = '';
   const bytes = new Uint8Array(buffer);
@@ -53,7 +62,7 @@ export default function XeroxForm() {
 
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [fileDataUri, setFileDataUri] = useState<string | null>(null); // For passing to payment page
+  const [fileDataUri, setFileDataUri] = useState<string | null>(null); 
 
   // Document specific state
   const [numPagesStr, setNumPagesStr] = useState<string>("1");
@@ -66,7 +75,7 @@ export default function XeroxForm() {
   const [photoType, setPhotoType] = useState<PhotoType>('4x6_inch');
 
   // Common print settings
-  const [numCopiesStr, setNumCopiesStr] = useState<string>("1"); // For documents: copies of set; For photos: number of prints/sheets
+  const [numCopiesStr, setNumCopiesStr] = useState<string>("1"); 
   const [printColor, setPrintColor] = useState<'color' | 'bw'>('bw');
 
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('pickup');
@@ -79,8 +88,21 @@ export default function XeroxForm() {
   const [actualDeliveryFee, setActualDeliveryFee] = useState<number>(0);
   const [totalCost, setTotalCost] = useState<number>(0);
 
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // General submission lock
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false); 
   const [formSubmissionStatus, setFormSubmissionStatus] = useState<SubmissionStatus>('idle');
+
+  // Effect to handle default printColor for photos
+  useEffect(() => {
+    if (serviceType === 'photo') {
+      setPrintColor('color'); // Photos are always color
+      // Reset document-specific settings if switching to photo
+      setNumPagesStr("1");
+      setPageCountStatus('idle');
+    } else {
+      // Optionally reset photo-specific settings if switching to document
+      // setPrintColor('bw'); // Default back to BW for documents or keep user's last doc choice
+    }
+  }, [serviceType]);
 
 
   const handleFileChange = async (selectedFile: File | null) => {
@@ -96,18 +118,19 @@ export default function XeroxForm() {
 
     setFile(selectedFile);
     setFileName(selectedFile ? selectedFile.name : null);
-    setFileDataUri(null); // Reset URI, will be generated on demand before payment navigation
+    setFileDataUri(null); 
 
     if (selectedFile) {
       const maxSizeBytes = serviceType === 'document' ? MAX_PDF_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES;
-      const serviceName = serviceType === 'document' ? 'PDF' : 'Image';
+      const serviceNameForToast = serviceType === 'document' ? 'PDF' : 'Image';
       if (selectedFile.size > maxSizeBytes) {
         toast({
           title: "File Too Large",
-          description: `${serviceName} exceeds max size. Max: ${(maxSizeBytes / (1024*1024)).toFixed(0)}MB. Yours: ${(selectedFile.size / (1024*1024)).toFixed(2)} MB.`,
+          description: `${serviceNameForToast} exceeds max size. Max: ${(maxSizeBytes / (1024*1024)).toFixed(0)}MB. Yours: ${(selectedFile.size / (1024*1024)).toFixed(2)} MB.`,
           variant: "destructive",
         });
-        setFile(null); setFileName(null); setPageCountStatus('idle'); setNumPagesStr("1");
+        setFile(null); setFileName(null); setPageCountStatus('idle'); 
+        if (serviceType === 'document') setNumPagesStr("1");
         return;
       }
 
@@ -120,46 +143,48 @@ export default function XeroxForm() {
           const pageCount = pdfDoc.getPageCount();
           setNumPagesStr(pageCount.toString());
           setPageCountStatus('detected');
-          // Don't set fileDataUri here to save memory, generate it before payment
           toast({ title: "PDF Processed", description: `${pageCount} page(s) found. File ready.` });
         } catch (error) {
           console.error("Failed to process PDF:", error);
           setNumPagesStr("1"); setPageCountStatus('error');
           toast({ title: "PDF Error", description: "Could not read PDF. Try another or enter page count manually.", variant: "destructive" });
         }
-      } else { // Photo service
-        setPageCountStatus('idle'); // Not applicable for photos, or set to 'detected' if we assume 1 image page
-        setNumPagesStr("1"); // For photos, numPagesStr can represent 1 image unit for cost calculation.
-         // Generate data URI for photo preview and eventual upload
+      } else { 
+        setPageCountStatus('idle'); 
+        setNumPagesStr("1"); 
         const arrayBuffer = await selectedFile.arrayBuffer();
         setFileDataUri(arrayBufferToDataUri(arrayBuffer, selectedFile.type));
         toast({ title: "Image Selected", description: "Image ready for preview and settings." });
       }
-    } else { // No file selected
-      setNumPagesStr("1"); setPageCountStatus('idle'); setFileDataUri(null);
+    } else { 
+      if (serviceType === 'document') setNumPagesStr("1");
+      setPageCountStatus('idle'); setFileDataUri(null);
     }
   };
 
   const calculateCost = useCallback(() => {
-    const numP = parseInt(serviceType === 'document' ? numPagesStr : "1"); // For photos, base pages = 1 (image itself)
-    const numC = parseInt(numCopiesStr); // For docs: copies of set; For photos: number of 4x6s or passport sheets
-
-    if (isNaN(numP) || numP <= 0 || isNaN(numC) || numC <= 0 || (serviceType === 'document' && pageCountStatus === 'processing')) {
-      setPrintCost(0); return;
-    }
-
     let currentPrintCost = 0;
+
     if (serviceType === 'document') {
-      let costPerPage = printColor === 'color' ? 0.50 : 0.10;
-      const paperSizeMultipliers: Record<typeof paperSize, number> = { A4: 1.0, Letter: 1.0, Legal: 1.2 };
-      costPerPage *= paperSizeMultipliers[paperSize];
+      const numP = parseInt(numPagesStr);
+      const numC = parseInt(numCopiesStr);
+      if (isNaN(numP) || numP <= 0 || isNaN(numC) || numC <= 0 || pageCountStatus === 'processing') {
+        setPrintCost(0); return;
+      }
+      let costPerPage = printColor === 'color' ? DOC_COST_PER_PAGE_COLOR : DOC_COST_PER_PAGE_BW;
+      costPerPage *= DOC_PAPER_SIZE_MULTIPLIERS[paperSize];
       currentPrintCost = numP * costPerPage * numC;
-      if (printSides === 'double') currentPrintCost *= 0.9;
-    } else { // Photo service
-      if (photoType === 'passport') { // 8 passport photos on a 4x6 sheet
-        currentPrintCost = (printColor === 'color' ? 25 : 15) * numC; // numC is number of sheets
+      if (printSides === 'double') currentPrintCost *= DOC_DOUBLE_SIDED_DISCOUNT;
+    } else { // Photo service - always color
+      const numPhotosOrSheets = parseInt(numCopiesStr); // This is individual photos for passport, or 4x6 prints
+      if (isNaN(numPhotosOrSheets) || numPhotosOrSheets <= 0) {
+        setPrintCost(0); return;
+      }
+      if (photoType === 'passport') {
+        const numSheets = Math.ceil(numPhotosOrSheets / 8); // 8 passport photos per sheet
+        currentPrintCost = numSheets * PHOTO_PASSPORT_SHEET_PRICE_COLOR;
       } else if (photoType === '4x6_inch') {
-        currentPrintCost = (printColor === 'color' ? 12 : 7) * numC; // numC is number of 4x6 prints
+        currentPrintCost = numPhotosOrSheets * PHOTO_4x6_PRINT_PRICE_COLOR;
       }
     }
     setPrintCost(currentPrintCost);
@@ -181,14 +206,15 @@ export default function XeroxForm() {
 
   const validateStep_UploadSettings = () => {
     if (!authContext.user) return false;
-    const isFileValid = !!file; // For photos, fileDataUri will be set if file is valid. For PDFs, pageCountStatus indicates processing success.
+    const isFileValid = !!file; 
 
     if (serviceType === 'document') {
       const numP = parseInt(numPagesStr);
-      return isFileValid && !isNaN(numP) && numP > 0 && pageCountStatus !== 'processing' && pageCountStatus !== 'error';
-    } else { // Photo
       const numC = parseInt(numCopiesStr);
-      return isFileValid && !isNaN(numC) && numC > 0;
+      return isFileValid && !isNaN(numP) && numP > 0 && !isNaN(numC) && numC > 0 && pageCountStatus !== 'processing' && pageCountStatus !== 'error';
+    } else { 
+      const numPhotosOrSheets = parseInt(numCopiesStr);
+      return isFileValid && !isNaN(numPhotosOrSheets) && numPhotosOrSheets > 0;
     }
   };
 
@@ -206,7 +232,7 @@ export default function XeroxForm() {
   };
 
   const handleNextStep = () => {
-    if (!authContext.user && currentStep !== 'service_type') { // Allow service type selection without login
+    if (!authContext.user && currentStep !== 'service_type') { 
       toast({ title: "Authentication Required", description: "Please sign in to proceed.", variant: "destructive" });
       return;
     }
@@ -219,7 +245,7 @@ export default function XeroxForm() {
        let errorTitle = "Incomplete Information";
        let errorDesc = "Please complete the current step.";
        if (currentStep === 'upload_settings' && !validateStep_UploadSettings()) {
-          errorDesc = serviceType === 'document' ? "Please upload a valid PDF and ensure page count is set." : "Please upload an image and set number of prints.";
+          errorDesc = serviceType === 'document' ? "Please upload a valid PDF, ensure page count and copies are set." : "Please upload an image and set number of photos/prints.";
        } else if (currentStep === 'delivery_details' && !validateStep_DeliveryDetails()){
           errorDesc = "Please complete the delivery or pickup details.";
        }
@@ -243,7 +269,7 @@ export default function XeroxForm() {
         toast({ title: "Incomplete Information", description: "Please ensure all previous steps are complete.", variant: "destructive" });
         return;
     }
-    if (!file) { // Check if file object exists, as fileDataUri might be generated on demand
+    if (!file) { 
         toast({ title: "File Error", description: "File data is missing. Please re-upload.", variant: "destructive" });
         return;
     }
@@ -256,8 +282,8 @@ export default function XeroxForm() {
     setFormSubmissionStatus('navigating');
     toast({ title: "Proceeding to Secure Payment", description: "All print orders require online payment. Redirecting..." });
 
-    let currentFileDataUri = fileDataUri; // Use already generated URI for photos
-    if (serviceType === 'document' && file && !fileDataUri) { // Generate for PDF if not already done
+    let currentFileDataUri = fileDataUri; 
+    if (serviceType === 'document' && file && !fileDataUri) { 
         try {
             const arrayBuffer = await file.arrayBuffer();
             currentFileDataUri = arrayBufferToDataUri(arrayBuffer, file.type);
@@ -281,8 +307,8 @@ export default function XeroxForm() {
     const queryParams = new URLSearchParams({
         serviceType,
         fileName: fileName || "Untitled",
-        numCopies: numCopiesStr,
-        printColor,
+        numCopies: numCopiesStr, // This is individual passport photos, or 4x6 prints, or doc sets
+        printColor: serviceType === 'photo' ? 'color' : printColor, // Photos always color
         totalCost: totalCost.toString(),
         deliveryMethod,
         userId: authContext.user.uid,
@@ -295,10 +321,8 @@ export default function XeroxForm() {
         queryParams.set('paperSize', paperSize);
         queryParams.set('printSides', printSides);
         queryParams.set('layout', layout);
-    } else { // Photo
+    } else { 
         queryParams.set('photoType', photoType);
-        // For photos, numPagesStr is implicitly 1 for calculation, don't need to send to payment page if it's confusing.
-        // numCopiesStr is already number of prints/sheets.
     }
 
     if (deliveryMethod === 'home_delivery') {
@@ -313,7 +337,6 @@ export default function XeroxForm() {
 
     sessionStorage.setItem('pendingOrderFileDataUri', currentFileDataUri);
     router.push(`/payment?${queryParams.toString()}`);
-    // setIsSubmitting(false) will happen on new page or if navigation fails
   };
 
 
@@ -405,7 +428,7 @@ export default function XeroxForm() {
                       <PrintPreview
                         serviceType={serviceType}
                         fileName={fileName}
-                        fileDataUri={fileDataUri} // Pass data URI for image preview
+                        fileDataUri={fileDataUri} 
                         // Document specific
                         numPages={numPagesStr}
                         printSides={printSides}
@@ -477,10 +500,21 @@ export default function XeroxForm() {
               </div>
 
               <p className="text-sm">Service Type: <span className="font-medium capitalize">{serviceType}</span></p>
-              {serviceType === 'photo' && <p className="text-sm">Photo Type: <span className="font-medium">{photoType === '4x6_inch' ? '4x6 Inch' : 'Passport Photos'}</span></p>}
+              
+              {serviceType === 'document' && (
+                <>
+                  <p className="text-sm">Pages in PDF: <span className="font-medium">{numPagesStr}</span></p>
+                  <p className="text-sm">Number of Document Sets: <span className="font-medium">{numCopiesStr}</span></p>
+                  <p className="text-sm">Color: <span className="font-medium capitalize">{printColor}</span></p>
+                </>
+              )}
+              {serviceType === 'photo' && (
+                <>
+                    <p className="text-sm">Photo Type: <span className="font-medium">{photoType === '4x6_inch' ? '4x6 Inch (Color)' : 'Passport Photos (Color)'}</span></p>
+                    <p className="text-sm">Number of {photoType === 'passport' ? 'Individual Passport Photos' : '4x6 Inch Prints'}: <span className="font-medium">{numCopiesStr}</span></p>
+                </>
+              )}
               <p className="text-sm">File: <span className="font-medium">{fileName || "N/A"}</span></p>
-              <p className="text-sm">Number of {serviceType === 'document' ? 'Sets' : photoType === 'passport' ? 'Passport Photo Sheets' : '4x6 Prints'}: <span className="font-medium">{numCopiesStr}</span></p>
-              <p className="text-sm">Color: <span className="font-medium capitalize">{printColor}</span></p>
 
 
               {deliveryMethod === 'pickup' && selectedPickupCenter && (

@@ -16,7 +16,7 @@ interface PrintPreviewProps {
   layout: '1up' | '2up';
   // Photo specific
   photoType: PhotoType;
-  numCopies: string;
+  numCopies: string; // For passport, this is total individual photos; for 4x6, total prints
 }
 
 export function PrintPreview({
@@ -147,28 +147,26 @@ export function PrintPreview({
       );
     }
 
-    const numSheets = parseInt(numCopies) || 1;
+    const numIndividualPhotos = parseInt(numCopies) || 0;
 
     if (photoType === 'passport') {
+      const numSheetsRequired = Math.ceil(numIndividualPhotos / 8);
       return (
         <div className="space-y-3">
-          {/* Outer container for the sheet appearance, with padding */}
           <div
             className="mx-auto w-full max-w-[260px] p-4 
                        rounded-lg border bg-muted shadow-sm"
-            aria-label="Passport photo sheet preview"
+            aria-label="Passport photo sheet preview (8 photos)"
           >
-            {/* Grid for the 8 photo slots, with a larger gap */}
             <div className="grid grid-cols-2 gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
-                /* Each photo slot - now 3:4 aspect ratio */
                 <div
                   key={i}
-                  className="relative overflow-hidden aspect-[3/4]" 
+                  className="relative overflow-hidden aspect-[3/4] bg-background rounded-md"
                 >
                   <Image
                     src={fileDataUri}
-                    alt={fileName ? `Passport photo preview of ${fileName}` : 'Passport photo preview'}
+                    alt={`Passport photo preview ${i + 1}`}
                     fill
                     sizes="(max-width: 260px) 50vw, 120px" 
                     className="object-cover"
@@ -178,7 +176,7 @@ export function PrintPreview({
             </div>
           </div>
           <p className="text-xs text-center text-muted-foreground">
-            {numSheets} sheet(s), 8 photos per sheet.
+            Preview shows 1 sheet (8 photos). You've ordered {numIndividualPhotos} passport photo(s), which will be printed on {numSheetsRequired} sheet(s).
           </p>
           <p className="text-xs text-center text-muted-foreground">
             <Maximize size={12} className="inline mr-1"/>Ensure uploaded image is suitably framed. Preview shows center-crop.
@@ -198,7 +196,7 @@ export function PrintPreview({
             />
           </div>
           <p className="text-xs text-center text-muted-foreground">
-            {numSheets} print(s) of your 4x6 inch photo.
+            {numIndividualPhotos} print(s) of your 4x6 inch photo (Color).
           </p>
         </div>
       );
