@@ -150,27 +150,31 @@ export function PrintPreview({
     const numSheets = parseInt(numCopies) || 1;
 
     if (photoType === 'passport') {
-      const photosPerSheet = 8; // 2 columns x 4 rows
+      const photosPerSheet = 8; 
       return (
         <div className="space-y-3">
+          {/* Updated Passport Photo Preview Grid */}
           <div
-            className="mx-auto w-full max-w-[200px] p-1 border bg-muted rounded-md shadow-sm grid grid-cols-2 gap-0.5"
+            className="mx-auto w-full max-w-[240px] aspect-[2/3] p-1 
+                       grid grid-cols-2 gap-0.5 rounded-md border bg-muted shadow-sm"
             aria-label="Passport photo sheet preview"
-            title="Preview of 8 passport photos on a 4x6 sheet"
-            style={{ aspectRatio: '4 / 6' }} // Enforce 4x6 aspect ratio for the container
           >
-            {Array.from({ length: photosPerSheet }).map((_, index) => (
-              <div key={`passport-preview-${index}`} className="relative bg-background overflow-hidden border-transparent" style={{aspectRatio: '3 / 4'}}>
+            {Array.from({ length: photosPerSheet }).map((_, i) => (
+              <div
+                key={`passport-preview-${i}`}
+                className="relative overflow-hidden aspect-[4/5] bg-background"
+              >
                 <Image
                   src={fileDataUri}
-                  alt={`Passport photo ${index + 1}`}
+                  alt={`Passport photo ${i + 1}`}
                   fill
-                  className="object-cover" // This ensures center-crop and fit
-                  sizes="(max-width: 200px) 25vw, 100px"
+                  sizes="(max-width: 240px) 50vw, 120px" // Adjusted sizes based on max-w of container
+                  className="object-cover"
                 />
               </div>
             ))}
           </div>
+          {/* End of Updated Passport Photo Preview Grid */}
           <p className="text-xs text-center text-muted-foreground">
             {numSheets} sheet(s), {photosPerSheet} photos per sheet.
           </p>
@@ -187,7 +191,7 @@ export function PrintPreview({
               src={fileDataUri}
               alt={fileName || "4x6 photo preview"}
               fill
-              className="object-contain" // For 4x6, contain might be better to show the whole image
+              className="object-contain" 
               sizes="(max-width: 768px) 100vw, 50vw"
             />
           </div>
