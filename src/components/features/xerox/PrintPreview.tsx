@@ -19,12 +19,12 @@ interface PrintPreviewProps {
   numCopies: string; // Number of prints/sheets
 }
 
-export function PrintPreview({ 
-  serviceType, 
-  fileName, 
+export function PrintPreview({
+  serviceType,
+  fileName,
   fileDataUri,
-  numPages, 
-  printSides, 
+  numPages,
+  printSides,
   layout,
   photoType,
   numCopies
@@ -49,7 +49,7 @@ export function PrintPreview({
     const sheetPreviews = [];
 
     if (numPhysicalSheets > 0) {
-      const sheetNumber = 1; 
+      const sheetNumber = 1;
       const sheetElements = [];
       const frontLayoutSideIndex = 0;
       if (frontLayoutSideIndex < numLayoutSidesNeeded) {
@@ -94,7 +94,7 @@ export function PrintPreview({
               </div>
             </div>
           );
-        } else if (frontLayoutSideIndex < numLayoutSidesNeeded) { 
+        } else if (frontLayoutSideIndex < numLayoutSidesNeeded) {
            sheetElements.push(
             <div key={`sheet-${sheetNumber}-back-empty`} className="opacity-60">
               <p className="text-xs font-semibold mb-1 text-center">Sheet {sheetNumber} - Back</p>
@@ -151,18 +151,19 @@ export function PrintPreview({
       const photosPerSheet = 8; // 2 columns x 4 rows
       return (
         <div className="space-y-3">
-          <div 
+          <div
             className="mx-auto w-full max-w-[240px] aspect-[4/6] p-1 border bg-muted rounded-md shadow-sm grid grid-cols-2 gap-1"
             aria-label="Passport photo sheet preview"
             title="Preview of 8 passport photos on a 4x6 sheet"
           >
             {Array.from({ length: photosPerSheet }).map((_, index) => (
               <div key={`passport-preview-${index}`} className="relative aspect-[3/4] bg-background overflow-hidden border border-muted-foreground/20">
-                <Image 
-                  src={fileDataUri} 
-                  alt={`Passport photo ${index + 1}`} 
-                  layout="fill" 
-                  objectFit="cover"
+                <Image
+                  src={fileDataUri}
+                  alt={`Passport photo ${index + 1}`}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 240px) 50vw, 120px" // Approximate size for the small previews
                 />
               </div>
             ))}
@@ -179,7 +180,13 @@ export function PrintPreview({
       return (
         <div className="space-y-3">
           <div className="relative aspect-[6/4] w-full rounded-md border bg-muted overflow-hidden shadow-sm">
-            <Image src={fileDataUri} alt={fileName || "4x6 photo preview"} layout="fill" objectFit="contain" />
+            <Image
+              src={fileDataUri}
+              alt={fileName || "4x6 photo preview"}
+              fill
+              className="object-contain" // Use contain for 4x6 to show the whole image
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
           </div>
           <p className="text-xs text-center text-muted-foreground">
             {numSheets} print(s) of your 4x6 inch photo.
@@ -189,3 +196,4 @@ export function PrintPreview({
     }
   }
 }
+
