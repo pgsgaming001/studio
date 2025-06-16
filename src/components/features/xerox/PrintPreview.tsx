@@ -145,26 +145,47 @@ export function PrintPreview({
       );
     }
 
-    const numPrintsVal = parseInt(numCopies) || 1;
-    let previewText = "";
-    if (photoType === 'passport') {
-      previewText = `Passport Photos: ${numPrintsVal} sheet(s), 8 photos per sheet. (Preview shows uploaded image).`;
-    } else { // 4x6_inch
-      previewText = `4x6 Inch Print: ${numPrintsVal} print(s). (Preview shows uploaded image).`;
-    }
+    const numSheets = parseInt(numCopies) || 1;
 
-    return (
-      <div className="space-y-3">
-        <div className="relative aspect-[3/2] w-full rounded-md border bg-muted overflow-hidden shadow-sm">
-          <Image src={fileDataUri} alt={fileName || "Photo preview"} layout="fill" objectFit="contain" />
-        </div>
-        <p className="text-xs text-center text-muted-foreground">{previewText}</p>
-        {photoType === 'passport' && (
+    if (photoType === 'passport') {
+      const photosPerSheet = 8; // 2 columns x 4 rows
+      return (
+        <div className="space-y-3">
+          <div 
+            className="mx-auto w-full max-w-[240px] aspect-[4/6] p-1 border bg-muted rounded-md shadow-sm grid grid-cols-2 gap-1"
+            aria-label="Passport photo sheet preview"
+            title="Preview of 8 passport photos on a 4x6 sheet"
+          >
+            {Array.from({ length: photosPerSheet }).map((_, index) => (
+              <div key={`passport-preview-${index}`} className="relative aspect-[3/4] bg-background overflow-hidden border border-muted-foreground/20">
+                <Image 
+                  src={fileDataUri} 
+                  alt={`Passport photo ${index + 1}`} 
+                  layout="fill" 
+                  objectFit="cover"
+                />
+              </div>
+            ))}
+          </div>
           <p className="text-xs text-center text-muted-foreground">
-            <Maximize size={12} className="inline mr-1"/> Ensure your uploaded image is suitable for passport photo requirements.
+            {numSheets} sheet(s), {photosPerSheet} photos per sheet.
           </p>
-        )}
-      </div>
-    );
+          <p className="text-xs text-center text-muted-foreground">
+            <Maximize size={12} className="inline mr-1"/>Ensure uploaded image is suitable for passport photos.
+          </p>
+        </div>
+      );
+    } else { // 4x6_inch
+      return (
+        <div className="space-y-3">
+          <div className="relative aspect-[6/4] w-full rounded-md border bg-muted overflow-hidden shadow-sm">
+            <Image src={fileDataUri} alt={fileName || "4x6 photo preview"} layout="fill" objectFit="contain" />
+          </div>
+          <p className="text-xs text-center text-muted-foreground">
+            {numSheets} print(s) of your 4x6 inch photo.
+          </p>
+        </div>
+      );
+    }
   }
 }
