@@ -152,26 +152,26 @@ export function PrintPreview({
     if (photoType === 'passport') {
       return (
         <div className="space-y-3">
-          {/* Outer container for the sheet appearance */}
+          {/* Outer container for the sheet appearance. REMOVED aspect-[2/3] */}
           <div
-            className="mx-auto w-full max-w-[240px] aspect-[2/3] p-1.5 
+            className="mx-auto w-full max-w-[240px] p-1.5 
                        rounded-lg border bg-muted shadow-sm"
             aria-label="Passport photo sheet preview"
           >
-            {/* Grid for the 8 photo slots */}
-            <div className="grid grid-cols-2 gap-1.5 h-full w-full">
+            {/* Grid for the 8 photo slots. REMOVED h-full w-full */}
+            <div className="grid grid-cols-2 gap-1.5">
               {Array.from({ length: 8 }).map((_, i) => (
                 /* Each photo slot */
                 <div
                   key={i}
-                  className="relative overflow-hidden aspect-[4/5]" /* No background, no individual rounded corners here */
+                  className="relative overflow-hidden aspect-[4/5]" /* bg-background removed, image will cover */
                 >
                   <Image
                     src={fileDataUri}
                     alt={`Passport photo ${i + 1}`}
                     fill
-                    sizes="(max-width: 240px) 50vw, 120px"
-                    className="object-cover" /* Image will cover this slot, center-cropped */
+                    sizes="(max-width: 240px) 50vw, 120px" /* This might need adjustment based on actual column width */
+                    className="object-cover"
                   />
                 </div>
               ))}
@@ -205,4 +205,4 @@ export function PrintPreview({
     }
   }
 }
-
+    
