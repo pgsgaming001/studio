@@ -88,6 +88,7 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
 
 
   let fileDownloadURL: string | null = null;
+  const orderUserId = order.userId; // Capture userId for potential error message
   
   try {
     const { db } = await connectToDatabase();
@@ -101,9 +102,9 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
         return { success: false, error: "Invalid file data format." };
       }
       const sanitizedFileName = originalFileName.replace(/\s+/g, '_');
-      const storagePath = `user_uploads/${order.userId}/${Date.now()}_${sanitizedFileName}`; // Changed path slightly for clarity
+      const storagePath = `user_uploads/${orderUserId}/${Date.now()}_${sanitizedFileName}`;
       
-      console.log(`Attempting to upload file to Firebase Storage: ${storagePath}`);
+      console.log(`Attempting to upload file to Firebase Storage. Path: '${storagePath}'. UserID for path: '${orderUserId}'`);
       const storageRef = ref(storage, storagePath);
       const uploadResult = await uploadString(storageRef, fileDataUri, 'data_url');
       console.log("Successfully uploaded file to Firebase Storage:", uploadResult.ref.fullPath);
@@ -127,19 +128,16 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
       createdAt: new Date(),
       fileDownloadURL: fileDownloadURL,
       pickupCode: newPickupCode,
-      // Ensure address is empty for pickup, and pickupCenter is undefined for home delivery
       deliveryAddress: order.deliveryMethod === 'home_delivery' ? order.deliveryAddress : { street: '', city: '', state: '', zip: '', country: ''},
       pickupCenter: order.deliveryMethod === 'pickup' ? order.pickupCenter : undefined,
       paymentMethod: order.paymentMethod,
       paymentDetails: order.paymentDetails,
-      // Ensure serviceType specific fields are correctly handled
       serviceType: order.serviceType,
       numPages: order.serviceType === 'document' ? order.numPages : undefined,
       paperSize: order.serviceType === 'document' ? order.paperSize : undefined,
       printSides: order.serviceType === 'document' ? order.printSides : undefined,
       layout: order.serviceType === 'document' ? order.layout : undefined,
       photoType: order.serviceType === 'photo' ? order.photoType : undefined,
-      // numCopies is common but its meaning changes. Stored as is.
     };
 
     console.log("Attempting to insert document into MongoDB 'orders':", JSON.stringify(orderDocument, null, 2));
@@ -161,10 +159,18 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
     let errorMessage = "Failed to submit order.";
     if (e instanceof Error) errorMessage += ` Details: ${e.message}`;
     else if (typeof e === 'string') errorMessage += ` Details: ${e}`;
-    if (e?.code) errorMessage += ` (Code: ${e.code})`;
-    else if (e?.codeName) errorMessage += ` (Code Name: ${e.codeName})`;
+    
+    if (e?.code === 'storage/unauthorized' || (e?.message && e.message.includes('storage/unauthorized'))) {
+        errorMessage = `Firebase Storage Permission Denied. User ID used for path: '${orderUserId}'. Original error: ${e.message}`;
+        console.error(`Firebase Storage Unauthorized Access: Attempted to write with userId '${orderUserId}'. Path like 'user_uploads/${orderUserId}/...'`);
+    } else if (e?.code) {
+        errorMessage += ` (Code: ${e.code})`;
+    } else if (e?.codeName) {
+        errorMessage += ` (Code Name: ${e.codeName})`;
+    }
     
     console.error("Final error message to client:", errorMessage);
     return { success: false, error: errorMessage };
   }
 }
+

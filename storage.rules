@@ -2,37 +2,37 @@
 rules_version = '2';
 
 service firebase.storage {
-  match /b/{bucket}/o {
+  match /b/{bucket}/o { // This line matches your specific Firebase Storage bucket.
 
-    // Rules for product images uploaded by admins/editors
+    // Rules for User-Uploaded Files (Print Service: Documents & Photos)
+    // Path structure: user_uploads/{USER_ID}/{filename}
+    // Authenticated users can read and write ONLY to their own folder.
+    match /user_uploads/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Rules for E-commerce Product Images
+    // Path structure: product_images/{PRODUCT_ID}/{filename}
+    // Product images should be publicly readable.
+    // Write access for product images:
+    //   - IDEALLY, this should be restricted to admin users (e.g., via custom claims).
+    //   - For now, allowing any authenticated user is a simplification.
+    //     In a production app, refine this rule to be more secure.
     match /product_images/{productId}/{allPaths=**} {
-      // Product images should generally be publicly readable
       allow read: if true;
-
-      // Allow write only if a user is authenticated.
-      // IMPORTANT: For a production app, you would typically restrict this further
-      // to users with specific admin roles, not just any authenticated user.
-      // This change addresses the "DANGER" sign on 'allow write: if true;'.
+      // To restrict to admins, you might use something like:
+      // allow write: if request.auth != null && request.auth.token.admin == true;
+      // For now, allowing any authenticated user:
       allow write: if request.auth != null;
     }
 
-    // Rules for PDF documents uploaded by users for the print service
-    match /user_documents/{orderId}/{allPaths=**} {
-      // Allow read if true for now, as download URLs might be generated and accessed.
-      // For stricter security, you could restrict this to the user who uploaded
-      // or to authenticated admins retrieving orders.
-      allow read: if true; // Or 'if request.auth != null;' for more restriction
-
-      // Allow write only if a user is authenticated. This allows users
-      // to upload their documents for printing when placing an order.
-      allow write: if request.auth != null;
-    }
-
-    // Add other specific paths and their rules here as needed.
-    // For example, if you have user profile pictures:
-    // match /user_profiles/{userId}/{allPaths=**} {
-    //   allow read: if true;
-    //   allow write: if request.auth != null && request.auth.uid == userId;
-    // }
+    // == IMPORTANT ==
+    // 1. Remove any other overly broad rules (e.g., `match /{allPaths=**}`)
+    //    that might be conflicting with or overriding these specific rules.
+    // 2. Ensure the paths in these rules (`user_uploads/` and `product_images/`)
+    //    exactly match the paths your application code uses when uploading files.
+    //    - Your print service uploads to: `user_uploads/{userId}/...`
+    //    - Your e-commerce product additions upload to: `product_images/{productId}/...`
+    //    These rules are designed to match those paths.
   }
 }

@@ -28,25 +28,25 @@ type XeroxFormStep = 'service_type' | 'upload_settings' | 'delivery_method' | 'd
 
 
 const PICKUP_CENTERS = ["Tenkasi Main Office", "Madurai Branch", "Chennai Hub"];
-const DELIVERY_CHARGE = 40;
+const DELIVERY_CHARGE = 40; // Assuming ₹40
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB for PDFs
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB for images
 
-// Document Pricing
-const DOC_COST_PER_PAGE_BW = 0.10;
-const DOC_COST_PER_PAGE_COLOR = 0.50;
+// Document Pricing (assuming ₹)
+const DOC_COST_PER_PAGE_BW = 2; // ₹2 per B&W page
+const DOC_COST_PER_PAGE_COLOR = 5; // ₹5 per Color page
 const DOC_PAPER_SIZE_MULTIPLIERS = { A4: 1.0, Letter: 1.0, Legal: 1.2 };
 const DOC_DOUBLE_SIDED_DISCOUNT = 0.9; // 10% discount
 
-// Photo Pricing
-const PHOTO_4x6_PRINT_PRICE_COLOR = 12; // Rs per 4x6 inch print
+// Photo Pricing (assuming ₹)
+const PHOTO_4x6_PRINT_PRICE_COLOR = 12; // ₹12 per 4x6 inch print
 
-// Tiered Passport Photo Pricing (per photo)
+// Tiered Passport Photo Pricing (per photo, assuming ₹)
 const PASSPORT_PRICE_TIER_1_UPTO_QTY = 4;
-const PASSPORT_PRICE_TIER_1_RATE = 15;
+const PASSPORT_PRICE_TIER_1_RATE = 15; // ₹15 per photo for 1-4 photos
 const PASSPORT_PRICE_TIER_2_UPTO_QTY = 7; // Covers 5, 6, 7 photos
-const PASSPORT_PRICE_TIER_2_RATE = 13;
-const PASSPORT_PRICE_TIER_3_RATE = 10; // For 8 photos or more
+const PASSPORT_PRICE_TIER_2_RATE = 13; // ₹13 per photo for 5-7 photos
+const PASSPORT_PRICE_TIER_3_RATE = 10; // ₹10 per photo for 8+ photos
 
 function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
   let binary = '';
@@ -428,7 +428,7 @@ export default function XeroxForm() {
                       numCopies={numCopiesStr} setNumCopies={setNumCopiesStr}
                       printColor={printColor} setPrintColor={setPrintColor}
                     />
-                    {serviceType === 'photo' && parseInt(numCopiesStr) > 0 && (
+                     {serviceType === 'photo' && parseInt(numCopiesStr) > 0 && (
                       <div className="mt-4 p-3 border rounded-md bg-secondary/50 text-sm">
                         <p className="font-semibold text-accent">Estimated Print Cost: ₹{printCost.toFixed(2)}</p>
                         {photoType === 'passport' && currentPricePerPhoto > 0 && (
@@ -545,6 +545,9 @@ export default function XeroxForm() {
                     {photoType === 'passport' && currentPricePerPhoto > 0 && (
                         <p className="text-xs text-muted-foreground">Price per photo: ₹{currentPricePerPhoto.toFixed(2)}</p>
                     )}
+                     {photoType === '4x6_inch' && (
+                        <p className="text-xs text-muted-foreground">Price per 4x6 print: ₹{PHOTO_4x6_PRINT_PRICE_COLOR.toFixed(2)}</p>
+                    )}
                 </>
               )}
               <p className="text-sm">File: <span className="font-medium">{fileName || "N/A"}</span></p>
@@ -608,4 +611,3 @@ export default function XeroxForm() {
     </div>
   );
 }
-

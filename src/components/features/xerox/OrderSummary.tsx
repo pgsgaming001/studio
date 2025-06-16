@@ -15,14 +15,14 @@ export function OrderSummary({ printCost, deliveryFee }: OrderSummaryProps) {
         <span className="text-muted-foreground flex items-center">
           <ShoppingCart size={16} className="mr-2 text-primary"/>Print Cost
         </span>
-        <span className="font-medium">${printCost.toFixed(2)}</span>
+        <span className="font-medium">₹{printCost.toFixed(2)}</span>
       </div>
       {deliveryFee > 0 && (
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground flex items-center">
             <Truck size={16} className="mr-2 text-primary"/>Delivery Fee
           </span>
-          <span className="font-medium">${deliveryFee.toFixed(2)}</span>
+          <span className="font-medium">₹{deliveryFee.toFixed(2)}</span>
         </div>
       )}
        {deliveryFee === 0 && (
@@ -38,7 +38,7 @@ export function OrderSummary({ printCost, deliveryFee }: OrderSummaryProps) {
         <span className="flex items-center">
             <CreditCard size={18} className="mr-2 text-primary" /> Total Amount
         </span>
-        <span>${totalCost.toFixed(2)}</span>
+        <span>₹{totalCost.toFixed(2)}</span>
       </div>
     </div>
   );

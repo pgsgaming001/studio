@@ -109,7 +109,7 @@ export default function CartPage() {
                     <h3 className="text-lg font-semibold text-card-foreground leading-tight">{item.name}</h3>
                   </Link>
                   <p className="text-sm text-muted-foreground">{item.category}</p>
-                  <p className="text-lg font-medium text-primary mt-1 sm:mt-2">${item.price.toFixed(2)}</p>
+                  <p className="text-lg font-medium text-primary mt-1 sm:mt-2">₹{item.price.toFixed(2)}</p>
                 </div>
                  <div className="flex items-center space-x-2 mt-3 sm:mt-auto">
                     <Button
@@ -165,7 +165,7 @@ export default function CartPage() {
             <CardContent className="space-y-4 pt-6">
               <div className="flex justify-between text-muted-foreground">
                 <span>Subtotal ({getItemCount()} items)</span>
-                <span>${getCartTotal().toFixed(2)}</span>
+                <span>₹{getCartTotal().toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Shipping</span>
@@ -174,7 +174,7 @@ export default function CartPage() {
               <Separator />
               <div className="flex justify-between font-bold text-xl">
                 <span>Total</span>
-                <span>${getCartTotal().toFixed(2)}</span>
+                <span>₹{getCartTotal().toFixed(2)}</span>
               </div>
             </CardContent>
             <CardFooter>
