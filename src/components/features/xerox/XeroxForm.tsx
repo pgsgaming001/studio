@@ -44,7 +44,7 @@ const PHOTO_4x6_PRINT_PRICE_COLOR = 12; // Rs per 4x6 inch print
 // Tiered Passport Photo Pricing (per photo)
 const PASSPORT_PRICE_TIER_1_UPTO_QTY = 4;
 const PASSPORT_PRICE_TIER_1_RATE = 15;
-const PASSPORT_PRICE_TIER_2_UPTO_QTY = 7;
+const PASSPORT_PRICE_TIER_2_UPTO_QTY = 7; // Covers 5, 6, 7 photos
 const PASSPORT_PRICE_TIER_2_RATE = 13;
 const PASSPORT_PRICE_TIER_3_RATE = 10; // For 8 photos or more
 
@@ -105,9 +105,9 @@ export default function XeroxForm() {
       setPrintColor('color'); 
       setNumPagesStr("1");
       setPageCountStatus('idle');
-      setNumCopiesStr("1"); // Reset to 1 when switching to photo
+      setNumCopiesStr("1"); 
     } else {
-      setNumCopiesStr("1"); // Reset to 1 for documents too
+      setNumCopiesStr("1"); 
     }
   }, [serviceType]);
 
@@ -173,17 +173,17 @@ export default function XeroxForm() {
     let currentPrintCost = 0;
     let calculatedPricePerPhoto = 0;
 
-    const numIndividualItems = parseInt(numCopiesStr); // Can be doc sets, passport photos, or 4x6 prints
+    const numIndividualItems = parseInt(numCopiesStr) || 0;
 
-    if (isNaN(numIndividualItems) || numIndividualItems <= 0) {
+    if (numIndividualItems <= 0) {
         setPrintCost(0);
         setCurrentPricePerPhoto(0);
         return;
     }
 
     if (serviceType === 'document') {
-      const numP = parseInt(numPagesStr);
-      if (isNaN(numP) || numP <= 0 || pageCountStatus === 'processing') {
+      const numP = parseInt(numPagesStr) || 0;
+      if (numP <= 0 || pageCountStatus === 'processing') {
         setPrintCost(0); return;
       }
       let costPerPage = printColor === 'color' ? DOC_COST_PER_PAGE_COLOR : DOC_COST_PER_PAGE_BW;
@@ -192,7 +192,6 @@ export default function XeroxForm() {
       if (printSides === 'double') currentPrintCost *= DOC_DOUBLE_SIDED_DISCOUNT;
     } else { // Photo service - always color
       if (photoType === 'passport') {
-        // numIndividualItems is the total number of individual passport photos
         if (numIndividualItems <= PASSPORT_PRICE_TIER_1_UPTO_QTY) {
           calculatedPricePerPhoto = PASSPORT_PRICE_TIER_1_RATE;
         } else if (numIndividualItems <= PASSPORT_PRICE_TIER_2_UPTO_QTY) {
@@ -202,9 +201,8 @@ export default function XeroxForm() {
         }
         currentPrintCost = numIndividualItems * calculatedPricePerPhoto;
       } else if (photoType === '4x6_inch') {
-        // numIndividualItems is the number of 4x6 prints
         currentPrintCost = numIndividualItems * PHOTO_4x6_PRINT_PRICE_COLOR;
-        calculatedPricePerPhoto = PHOTO_4x6_PRINT_PRICE_COLOR; // For consistency, though not tiered
+        calculatedPricePerPhoto = PHOTO_4x6_PRINT_PRICE_COLOR;
       }
     }
     setPrintCost(currentPrintCost);
@@ -610,3 +608,4 @@ export default function XeroxForm() {
     </div>
   );
 }
+
