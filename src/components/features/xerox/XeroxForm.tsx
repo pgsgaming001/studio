@@ -17,7 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CreditCard, ArrowRight, ArrowLeft, UserCheck, FileText, Camera } from "lucide-react";
+import { Loader2, CreditCard, ArrowRight, ArrowLeft, UserCheck, FileText, Camera, Info } from "lucide-react";
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
 export type SubmissionStatus = 'idle' | 'preparing' | 'navigating' | 'success' | 'error';
@@ -32,14 +32,21 @@ const DELIVERY_CHARGE = 40;
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB for PDFs
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB for images
 
-// Pricing (Example - adjust as needed)
+// Document Pricing
 const DOC_COST_PER_PAGE_BW = 0.10;
 const DOC_COST_PER_PAGE_COLOR = 0.50;
 const DOC_PAPER_SIZE_MULTIPLIERS = { A4: 1.0, Letter: 1.0, Legal: 1.2 };
 const DOC_DOUBLE_SIDED_DISCOUNT = 0.9; // 10% discount
 
-const PHOTO_PASSPORT_SHEET_PRICE_COLOR = 25; // For a sheet of 8 passport photos
-const PHOTO_4x6_PRINT_PRICE_COLOR = 12;    // Per 4x6 inch print
+// Photo Pricing
+const PHOTO_4x6_PRINT_PRICE_COLOR = 12; // Rs per 4x6 inch print
+
+// Tiered Passport Photo Pricing (per photo)
+const PASSPORT_PRICE_TIER_1_UPTO_QTY = 4;
+const PASSPORT_PRICE_TIER_1_RATE = 15;
+const PASSPORT_PRICE_TIER_2_UPTO_QTY = 7;
+const PASSPORT_PRICE_TIER_2_RATE = 13;
+const PASSPORT_PRICE_TIER_3_RATE = 10; // For 8 photos or more
 
 function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
   let binary = '';
@@ -73,6 +80,8 @@ export default function XeroxForm() {
 
   // Photo specific state
   const [photoType, setPhotoType] = useState<PhotoType>('4x6_inch');
+  const [currentPricePerPhoto, setCurrentPricePerPhoto] = useState<number>(0);
+
 
   // Common print settings
   const [numCopiesStr, setNumCopiesStr] = useState<string>("1"); 
@@ -91,16 +100,14 @@ export default function XeroxForm() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false); 
   const [formSubmissionStatus, setFormSubmissionStatus] = useState<SubmissionStatus>('idle');
 
-  // Effect to handle default printColor for photos
   useEffect(() => {
     if (serviceType === 'photo') {
-      setPrintColor('color'); // Photos are always color
-      // Reset document-specific settings if switching to photo
+      setPrintColor('color'); 
       setNumPagesStr("1");
       setPageCountStatus('idle');
+      setNumCopiesStr("1"); // Reset to 1 when switching to photo
     } else {
-      // Optionally reset photo-specific settings if switching to document
-      // setPrintColor('bw'); // Default back to BW for documents or keep user's last doc choice
+      setNumCopiesStr("1"); // Reset to 1 for documents too
     }
   }, [serviceType]);
 
@@ -164,30 +171,44 @@ export default function XeroxForm() {
 
   const calculateCost = useCallback(() => {
     let currentPrintCost = 0;
+    let calculatedPricePerPhoto = 0;
+
+    const numIndividualItems = parseInt(numCopiesStr); // Can be doc sets, passport photos, or 4x6 prints
+
+    if (isNaN(numIndividualItems) || numIndividualItems <= 0) {
+        setPrintCost(0);
+        setCurrentPricePerPhoto(0);
+        return;
+    }
 
     if (serviceType === 'document') {
       const numP = parseInt(numPagesStr);
-      const numC = parseInt(numCopiesStr);
-      if (isNaN(numP) || numP <= 0 || isNaN(numC) || numC <= 0 || pageCountStatus === 'processing') {
+      if (isNaN(numP) || numP <= 0 || pageCountStatus === 'processing') {
         setPrintCost(0); return;
       }
       let costPerPage = printColor === 'color' ? DOC_COST_PER_PAGE_COLOR : DOC_COST_PER_PAGE_BW;
       costPerPage *= DOC_PAPER_SIZE_MULTIPLIERS[paperSize];
-      currentPrintCost = numP * costPerPage * numC;
+      currentPrintCost = numP * costPerPage * numIndividualItems; // numIndividualItems is numDocSets here
       if (printSides === 'double') currentPrintCost *= DOC_DOUBLE_SIDED_DISCOUNT;
     } else { // Photo service - always color
-      const numPhotosOrSheets = parseInt(numCopiesStr); // This is individual photos for passport, or 4x6 prints
-      if (isNaN(numPhotosOrSheets) || numPhotosOrSheets <= 0) {
-        setPrintCost(0); return;
-      }
       if (photoType === 'passport') {
-        const numSheets = Math.ceil(numPhotosOrSheets / 8); // 8 passport photos per sheet
-        currentPrintCost = numSheets * PHOTO_PASSPORT_SHEET_PRICE_COLOR;
+        // numIndividualItems is the total number of individual passport photos
+        if (numIndividualItems <= PASSPORT_PRICE_TIER_1_UPTO_QTY) {
+          calculatedPricePerPhoto = PASSPORT_PRICE_TIER_1_RATE;
+        } else if (numIndividualItems <= PASSPORT_PRICE_TIER_2_UPTO_QTY) {
+          calculatedPricePerPhoto = PASSPORT_PRICE_TIER_2_RATE;
+        } else {
+          calculatedPricePerPhoto = PASSPORT_PRICE_TIER_3_RATE;
+        }
+        currentPrintCost = numIndividualItems * calculatedPricePerPhoto;
       } else if (photoType === '4x6_inch') {
-        currentPrintCost = numPhotosOrSheets * PHOTO_4x6_PRINT_PRICE_COLOR;
+        // numIndividualItems is the number of 4x6 prints
+        currentPrintCost = numIndividualItems * PHOTO_4x6_PRINT_PRICE_COLOR;
+        calculatedPricePerPhoto = PHOTO_4x6_PRINT_PRICE_COLOR; // For consistency, though not tiered
       }
     }
     setPrintCost(currentPrintCost);
+    setCurrentPricePerPhoto(calculatedPricePerPhoto);
   }, [numPagesStr, numCopiesStr, printColor, paperSize, printSides, pageCountStatus, serviceType, photoType]);
 
   useEffect(() => {
@@ -307,8 +328,8 @@ export default function XeroxForm() {
     const queryParams = new URLSearchParams({
         serviceType,
         fileName: fileName || "Untitled",
-        numCopies: numCopiesStr, // This is individual passport photos, or 4x6 prints, or doc sets
-        printColor: serviceType === 'photo' ? 'color' : printColor, // Photos always color
+        numCopies: numCopiesStr, 
+        printColor: serviceType === 'photo' ? 'color' : printColor,
         totalCost: totalCost.toString(),
         deliveryMethod,
         userId: authContext.user.uid,
@@ -387,7 +408,7 @@ export default function XeroxForm() {
           )}
 
           {currentStep === 'upload_settings' && (
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-6 items-start">
               <div className="space-y-6">
                 <FileUpload
                     onFileChange={handleFileChange}
@@ -397,20 +418,30 @@ export default function XeroxForm() {
                     serviceType={serviceType}
                 />
                 {file && authContext.user && (
-                  <PrintSettings
-                    serviceType={serviceType}
-                    // Document settings
-                    numPages={numPagesStr} setNumPages={setNumPagesStr}
-                    pageCountStatus={pageCountStatus}
-                    paperSize={paperSize} setPaperSize={setPaperSize}
-                    printSides={printSides} setPrintSides={setPrintSides}
-                    layout={layout} setLayout={setLayout}
-                    // Photo settings
-                    photoType={photoType} setPhotoType={setPhotoType}
-                    // Common settings
-                    numCopies={numCopiesStr} setNumCopies={setNumCopiesStr}
-                    printColor={printColor} setPrintColor={setPrintColor}
-                  />
+                  <>
+                    <PrintSettings
+                      serviceType={serviceType}
+                      numPages={numPagesStr} setNumPages={setNumPagesStr}
+                      pageCountStatus={pageCountStatus}
+                      paperSize={paperSize} setPaperSize={setPaperSize}
+                      printSides={printSides} setPrintSides={setPrintSides}
+                      layout={layout} setLayout={setLayout}
+                      photoType={photoType} setPhotoType={setPhotoType}
+                      numCopies={numCopiesStr} setNumCopies={setNumCopiesStr}
+                      printColor={printColor} setPrintColor={setPrintColor}
+                    />
+                    {serviceType === 'photo' && parseInt(numCopiesStr) > 0 && (
+                      <div className="mt-4 p-3 border rounded-md bg-secondary/50 text-sm">
+                        <p className="font-semibold text-accent">Estimated Print Cost: ₹{printCost.toFixed(2)}</p>
+                        {photoType === 'passport' && currentPricePerPhoto > 0 && (
+                          <p className="text-xs text-muted-foreground">(@ ₹{currentPricePerPhoto.toFixed(2)} per photo)</p>
+                        )}
+                        {photoType === '4x6_inch' && (
+                           <p className="text-xs text-muted-foreground">(@ ₹{PHOTO_4x6_PRINT_PRICE_COLOR.toFixed(2)} per 4x6 print)</p>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               <div>
@@ -422,6 +453,9 @@ export default function XeroxForm() {
                       </CardTitle>
                       <CardDescription>
                         {serviceType === 'document' ? 'First physical sheet layout.' : 'Your selected image.'}
+                         {serviceType === 'photo' && photoType === 'passport' && parseInt(numCopiesStr) > 0 && (
+                            ` Showing ${Math.min(parseInt(numCopiesStr), 8)} of ${numCopiesStr} photo(s) on first sheet.`
+                         )}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -429,11 +463,9 @@ export default function XeroxForm() {
                         serviceType={serviceType}
                         fileName={fileName}
                         fileDataUri={fileDataUri} 
-                        // Document specific
                         numPages={numPagesStr}
                         printSides={printSides}
                         layout={layout}
-                        // Photo specific
                         photoType={photoType}
                         numCopies={numCopiesStr}
                       />
@@ -512,6 +544,9 @@ export default function XeroxForm() {
                 <>
                     <p className="text-sm">Photo Type: <span className="font-medium">{photoType === '4x6_inch' ? '4x6 Inch (Color)' : 'Passport Photos (Color)'}</span></p>
                     <p className="text-sm">Number of {photoType === 'passport' ? 'Individual Passport Photos' : '4x6 Inch Prints'}: <span className="font-medium">{numCopiesStr}</span></p>
+                    {photoType === 'passport' && currentPricePerPhoto > 0 && (
+                        <p className="text-xs text-muted-foreground">Price per photo: ₹{currentPricePerPhoto.toFixed(2)}</p>
+                    )}
                 </>
               )}
               <p className="text-sm">File: <span className="font-medium">{fileName || "N/A"}</span></p>
