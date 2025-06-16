@@ -152,25 +152,30 @@ export function PrintPreview({
     if (photoType === 'passport') {
       return (
         <div className="space-y-3">
+          {/* Outer container for the sheet appearance */}
           <div
             className="mx-auto w-full max-w-[240px] aspect-[2/3] p-1.5 
-                       grid grid-cols-2 gap-1.5 rounded-lg border bg-muted shadow-sm"
+                       rounded-lg border bg-muted shadow-sm"
             aria-label="Passport photo sheet preview"
           >
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="relative overflow-hidden aspect-[4/5] bg-background rounded-md" // Photo slots are white and rounded
-              >
-                <Image
-                  src={fileDataUri} // User's uploaded image
-                  alt={`Uploaded image for passport photo ${i + 1}`}
-                  fill
-                  sizes="(max-width: 240px) 50vw, 120px"
-                  className="object-cover" // Center-crops the image
-                />
-              </div>
-            ))}
+            {/* Grid for the 8 photo slots */}
+            <div className="grid grid-cols-2 gap-1.5 h-full w-full">
+              {Array.from({ length: 8 }).map((_, i) => (
+                /* Each photo slot */
+                <div
+                  key={i}
+                  className="relative overflow-hidden aspect-[4/5]" /* No background, no individual rounded corners here */
+                >
+                  <Image
+                    src={fileDataUri}
+                    alt={`Passport photo ${i + 1}`}
+                    fill
+                    sizes="(max-width: 240px) 50vw, 120px"
+                    className="object-cover" /* Image will cover this slot, center-cropped */
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <p className="text-xs text-center text-muted-foreground">
             {numSheets} sheet(s), 8 photos per sheet.
@@ -188,7 +193,7 @@ export function PrintPreview({
               src={fileDataUri}
               alt={fileName || "4x6 photo preview"}
               fill
-              className="object-contain" // Use object-contain for 4x6 to show the whole image
+              className="object-contain" 
               sizes="(max-width: 768px) 100vw, 50vw"
             />
           </div>
@@ -200,3 +205,4 @@ export function PrintPreview({
     }
   }
 }
+
