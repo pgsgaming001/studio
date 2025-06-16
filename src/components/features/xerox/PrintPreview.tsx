@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FileWarning, Printer, Image as ImageIcon, Maximize } from "lucide-react";
 import Image from "next/image";
 import type { ServiceType, PhotoType } from "./XeroxForm";
+import { cn } from "@/lib/utils";
 
 interface PrintPreviewProps {
   serviceType: ServiceType;
@@ -147,36 +148,45 @@ export function PrintPreview({
       );
     }
 
-    const numIndividualPhotos = parseInt(numCopies) || 0;
+    const orderedPhotoCount = parseInt(numCopies) || 0;
 
     if (photoType === 'passport') {
-      const numSheetsRequired = Math.ceil(numIndividualPhotos / 8);
+      const numSheetsRequired = Math.ceil(orderedPhotoCount / 8); // Based on actual ordered photos
       return (
         <div className="space-y-3">
           <div
-            className="mx-auto w-full max-w-[260px] p-4 
-                       rounded-lg border bg-muted shadow-sm"
-            aria-label="Passport photo sheet preview (8 photos)"
+            className="mx-auto w-full max-w-[260px] p-4 rounded-lg border bg-muted shadow-sm"
+            aria-label="Passport photo sheet preview"
           >
             <div className="grid grid-cols-2 gap-3">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="relative overflow-hidden aspect-[3/4] bg-background rounded-md"
-                >
-                  <Image
-                    src={fileDataUri}
-                    alt={`Passport photo preview ${i + 1}`}
-                    fill
-                    sizes="(max-width: 260px) 50vw, 120px" 
-                    className="object-cover"
-                  />
-                </div>
-              ))}
+              {Array.from({ length: 8 }).map((_, i) => {
+                const isSlotFilled = i < orderedPhotoCount;
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      "relative overflow-hidden aspect-[3/4] rounded-md", // 3:4 ratio for passport photos
+                      isSlotFilled ? "bg-background" : "bg-muted/50 border border-dashed border-muted-foreground/30 flex items-center justify-center"
+                    )}
+                  >
+                    {isSlotFilled ? (
+                      <Image
+                        src={fileDataUri}
+                        alt={`Passport Photo ${i + 1}`}
+                        fill
+                        sizes="(max-width: 260px) 50vw, 125px" // Approx 125px for a 260px wide container with 2 cols & gap
+                        className="object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground/70">Empty</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
           <p className="text-xs text-center text-muted-foreground">
-            Preview shows 1 sheet (8 photos). You've ordered {numIndividualPhotos} passport photo(s), which will be printed on {numSheetsRequired} sheet(s).
+            Preview shows arrangement on one sheet. You've ordered {orderedPhotoCount} passport photo(s){numSheetsRequired > 1 ? `, which will be printed on ${numSheetsRequired} sheet(s)` : ''}.
           </p>
           <p className="text-xs text-center text-muted-foreground">
             <Maximize size={12} className="inline mr-1"/>Ensure uploaded image is suitably framed. Preview shows center-crop.
@@ -191,12 +201,12 @@ export function PrintPreview({
               src={fileDataUri}
               alt={fileName || "4x6 photo preview"}
               fill
-              className="object-contain" 
+              className="object-contain" // Use contain for 4x6 to show the whole image
               sizes="(max-width: 768px) 100vw, 50vw"
             />
           </div>
           <p className="text-xs text-center text-muted-foreground">
-            {numIndividualPhotos} print(s) of your 4x6 inch photo (Color).
+            {orderedPhotoCount} print(s) of your 4x6 inch photo (Color).
           </p>
         </div>
       );
