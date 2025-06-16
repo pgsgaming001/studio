@@ -218,12 +218,16 @@ function PaymentPageContent() {
               router.push(`/order-confirmation?${queryParams.toString()}`);
 
             } else {
-              throw new Error(submissionResult.error || "Failed to save order after payment. Please contact support with your payment details.");
+              let detailedError = submissionResult.error || "Failed to save order after payment. Please contact support.";
+              if (submissionResult.error && submissionResult.error.includes("storage/unauthorized")) {
+                  detailedError = `Order data could not be saved due to a file permission error. This often means the storage security rules in your Firebase project need adjustment to allow uploads for authenticated users (e.g., allow write: if request.auth != null && request.auth.uid == userId; on the 'user_uploads/{userId}/*' path). Please check your Firebase Storage rules in the Firebase Console. Original error: ${submissionResult.error}`;
+              }
+              throw new Error(detailedError);
             }
           } catch (e: any) {
             console.error("PaymentPage: Order submission to MongoDB failed after payment:", e);
             setError(e.message || "Order submission failed after successful payment. Contact support.");
-            toast({ title: "Order Submission Failed Post-Payment", description: e.message, variant: "destructive", duration: 10000 });
+            toast({ title: "Order Submission Failed Post-Payment", description: e.message, variant: "destructive", duration: 15000 });
           } finally {
             setIsProcessing(false); 
           }
@@ -396,3 +400,5 @@ export default function PaymentPage() {
     </Suspense>
   );
 }
+
+
