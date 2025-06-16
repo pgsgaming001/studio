@@ -6,6 +6,7 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import type { Address } from '@/components/features/xerox/DeliveryAddress';
 import type { ObjectId } from 'mongodb';
+import type { ServiceType, PhotoType } from '@/components/features/xerox/XeroxForm'; // Import new types
 
 // Function to generate a unique pickup code
 const generatePickupCode = (): string => {
@@ -22,13 +23,22 @@ export interface RazorpayPaymentDetails {
 // Interface for data to be stored in MongoDB
 export interface OrderDataMongo {
   _id?: ObjectId;
+  serviceType: ServiceType; 
   fileName: string | null;
-  numPages: string;
-  numCopies: string;
+  
+  // Document specific (optional)
+  numPages?: string;
+  paperSize?: 'A4' | 'Letter' | 'Legal';
+  printSides?: 'single' | 'double';
+  layout?: '1up' | '2up';
+  
+  // Photo specific (optional)
+  photoType?: PhotoType;
+  // photoPaperFinish?: 'glossy' | 'matte'; // Future enhancement
+
+  // Common
+  numCopies: string; // For docs: num sets; For photos: num prints/sheets
   printColor: 'color' | 'bw';
-  paperSize: 'A4' | 'Letter' | 'Legal';
-  printSides: 'single' | 'double';
-  layout: '1up' | '2up';
   
   deliveryMethod: 'pickup' | 'home_delivery';
   deliveryAddress: Address; 
@@ -55,7 +65,7 @@ export type OrderFormPayload = Omit<OrderDataMongo, 'status' | 'createdAt' | '_i
 
 
 export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{success: boolean, orderId?: string, pickupCode?: string, error?: string}> {
-  console.log("submitOrderToMongoDB called with order payload:", { ...order, fileDataUri: order.fileDataUri ? 'PRESENT' : 'ABSENT', paymentMethod: order.paymentMethod });
+  console.log("submitOrderToMongoDB called with order payload:", { ...order, fileDataUri: order.fileDataUri ? 'PRESENT' : 'ABSENT', paymentMethod: order.paymentMethod, serviceType: order.serviceType });
 
   if (!order.userId || !order.userEmail || !order.userName) {
     console.error("User authentication details (userId, userEmail, userName) are missing.");
@@ -91,7 +101,7 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
         return { success: false, error: "Invalid file data format." };
       }
       const sanitizedFileName = originalFileName.replace(/\s+/g, '_');
-      const storagePath = `user_documents/${order.userId}/${Date.now()}_${sanitizedFileName}`;
+      const storagePath = `user_uploads/${order.userId}/${Date.now()}_${sanitizedFileName}`; // Changed path slightly for clarity
       
       console.log(`Attempting to upload file to Firebase Storage: ${storagePath}`);
       const storageRef = ref(storage, storagePath);
@@ -117,10 +127,19 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
       createdAt: new Date(),
       fileDownloadURL: fileDownloadURL,
       pickupCode: newPickupCode,
+      // Ensure address is empty for pickup, and pickupCenter is undefined for home delivery
       deliveryAddress: order.deliveryMethod === 'home_delivery' ? order.deliveryAddress : { street: '', city: '', state: '', zip: '', country: ''},
       pickupCenter: order.deliveryMethod === 'pickup' ? order.pickupCenter : undefined,
       paymentMethod: order.paymentMethod,
       paymentDetails: order.paymentDetails,
+      // Ensure serviceType specific fields are correctly handled
+      serviceType: order.serviceType,
+      numPages: order.serviceType === 'document' ? order.numPages : undefined,
+      paperSize: order.serviceType === 'document' ? order.paperSize : undefined,
+      printSides: order.serviceType === 'document' ? order.printSides : undefined,
+      layout: order.serviceType === 'document' ? order.layout : undefined,
+      photoType: order.serviceType === 'photo' ? order.photoType : undefined,
+      // numCopies is common but its meaning changes. Stored as is.
     };
 
     console.log("Attempting to insert document into MongoDB 'orders':", JSON.stringify(orderDocument, null, 2));
@@ -149,4 +168,3 @@ export async function submitOrderToMongoDB(order: OrderFormPayload): Promise<{su
     return { success: false, error: errorMessage };
   }
 }
-

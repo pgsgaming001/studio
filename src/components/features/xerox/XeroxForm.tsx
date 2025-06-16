@@ -17,16 +17,20 @@ import { useAuth } from "@/context/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Send, CreditCard, ArrowRight, ArrowLeft, PackageCheck, UserCheck } from "lucide-react";
+import { Loader2, CreditCard, ArrowRight, ArrowLeft, UserCheck, FileText, Camera } from "lucide-react";
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
 export type SubmissionStatus = 'idle' | 'preparing' | 'navigating' | 'success' | 'error';
 type DeliveryMethod = 'pickup' | 'home_delivery';
-type XeroxFormStep = 'upload_settings' | 'delivery_method' | 'delivery_details' | 'summary_payment';
+export type ServiceType = 'document' | 'photo';
+export type PhotoType = 'passport' | '4x6_inch';
+type XeroxFormStep = 'service_type' | 'upload_settings' | 'delivery_method' | 'delivery_details' | 'summary_payment';
+
 
 const PICKUP_CENTERS = ["Tenkasi Main Office", "Madurai Branch", "Chennai Hub"];
 const DELIVERY_CHARGE = 40;
-const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB for PDFs
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB for images
 
 function arrayBufferToDataUri(buffer: ArrayBuffer, mimeType: string): string {
   let binary = '';
@@ -44,20 +48,26 @@ export default function XeroxForm() {
   const { toast } = useToast();
   const authContext = useAuth();
 
-  const [currentStep, setCurrentStep] = useState<XeroxFormStep>('upload_settings');
+  const [currentStep, setCurrentStep] = useState<XeroxFormStep>('service_type');
+  const [serviceType, setServiceType] = useState<ServiceType>('document');
 
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [fileDataUri, setFileDataUri] = useState<string | null>(null);
+  const [fileDataUri, setFileDataUri] = useState<string | null>(null); // For passing to payment page
 
+  // Document specific state
   const [numPagesStr, setNumPagesStr] = useState<string>("1");
-  const [numCopiesStr, setNumCopiesStr] = useState<string>("1");
   const [pageCountStatus, setPageCountStatus] = useState<PageCountStatus>('idle');
-
-  const [printColor, setPrintColor] = useState<'color' | 'bw'>('bw');
-  const [paperSize, setPaperSize] = useState<'A4' | 'Letter' | 'Legal'>('A4');
-  const [printSides, setPrintSides] = useState<'single' | 'double'>('single');
   const [layout, setLayout] = useState<'1up' | '2up'>('1up');
+  const [printSides, setPrintSides] = useState<'single' | 'double'>('single');
+  const [paperSize, setPaperSize] = useState<'A4' | 'Letter' | 'Legal'>('A4');
+
+  // Photo specific state
+  const [photoType, setPhotoType] = useState<PhotoType>('4x6_inch');
+
+  // Common print settings
+  const [numCopiesStr, setNumCopiesStr] = useState<string>("1"); // For documents: copies of set; For photos: number of prints/sheets
+  const [printColor, setPrintColor] = useState<'color' | 'bw'>('bw');
 
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('pickup');
   const [selectedPickupCenter, setSelectedPickupCenter] = useState<string>(PICKUP_CENTERS[0] || "");
@@ -69,7 +79,7 @@ export default function XeroxForm() {
   const [actualDeliveryFee, setActualDeliveryFee] = useState<number>(0);
   const [totalCost, setTotalCost] = useState<number>(0);
 
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // General submission lock
   const [formSubmissionStatus, setFormSubmissionStatus] = useState<SubmissionStatus>('idle');
 
 
@@ -77,7 +87,7 @@ export default function XeroxForm() {
     if (!authContext.user) {
       toast({
         title: "Authentication Required",
-        description: "Please sign in with Google to upload a file.",
+        description: "Please sign in with Google to upload.",
         variant: "destructive",
       });
       setFile(null); setFileName(null); setFileDataUri(null); setPageCountStatus('idle');
@@ -86,52 +96,74 @@ export default function XeroxForm() {
 
     setFile(selectedFile);
     setFileName(selectedFile ? selectedFile.name : null);
-    setFileDataUri(null);
+    setFileDataUri(null); // Reset URI, will be generated on demand before payment navigation
 
     if (selectedFile) {
-      if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
+      const maxSizeBytes = serviceType === 'document' ? MAX_PDF_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES;
+      const serviceName = serviceType === 'document' ? 'PDF' : 'Image';
+      if (selectedFile.size > maxSizeBytes) {
         toast({
           title: "File Too Large",
-          description: `PDF exceeds 10MB. Max: ${(MAX_PDF_SIZE_BYTES / (1024*1024)).toFixed(0)}MB. Yours: ${(selectedFile.size / (1024*1024)).toFixed(2)} MB.`,
+          description: `${serviceName} exceeds max size. Max: ${(maxSizeBytes / (1024*1024)).toFixed(0)}MB. Yours: ${(selectedFile.size / (1024*1024)).toFixed(2)} MB.`,
           variant: "destructive",
         });
         setFile(null); setFileName(null); setPageCountStatus('idle'); setNumPagesStr("1");
         return;
       }
-      setPageCountStatus('processing'); setNumPagesStr("");
-      toast({ title: "Processing PDF...", description: "Detecting page count..." });
-      try {
+
+      if (serviceType === 'document') {
+        setPageCountStatus('processing'); setNumPagesStr("");
+        toast({ title: "Processing PDF...", description: "Detecting page count..." });
+        try {
+          const arrayBuffer = await selectedFile.arrayBuffer();
+          const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+          const pageCount = pdfDoc.getPageCount();
+          setNumPagesStr(pageCount.toString());
+          setPageCountStatus('detected');
+          // Don't set fileDataUri here to save memory, generate it before payment
+          toast({ title: "PDF Processed", description: `${pageCount} page(s) found. File ready.` });
+        } catch (error) {
+          console.error("Failed to process PDF:", error);
+          setNumPagesStr("1"); setPageCountStatus('error');
+          toast({ title: "PDF Error", description: "Could not read PDF. Try another or enter page count manually.", variant: "destructive" });
+        }
+      } else { // Photo service
+        setPageCountStatus('idle'); // Not applicable for photos, or set to 'detected' if we assume 1 image page
+        setNumPagesStr("1"); // For photos, numPagesStr can represent 1 image unit for cost calculation.
+         // Generate data URI for photo preview and eventual upload
         const arrayBuffer = await selectedFile.arrayBuffer();
-        const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-        const pageCount = pdfDoc.getPageCount();
-        setNumPagesStr(pageCount.toString());
-        setPageCountStatus('detected');
         setFileDataUri(arrayBufferToDataUri(arrayBuffer, selectedFile.type));
-        toast({ title: "PDF Processed", description: `${pageCount} page(s) found. File ready.` });
-      } catch (error) {
-        console.error("Failed to process PDF:", error);
-        setNumPagesStr("1"); setPageCountStatus('error'); setFileDataUri(null);
-        toast({ title: "PDF Error", description: "Could not read PDF. Try another or enter page count manually.", variant: "destructive" });
+        toast({ title: "Image Selected", description: "Image ready for preview and settings." });
       }
-    } else {
+    } else { // No file selected
       setNumPagesStr("1"); setPageCountStatus('idle'); setFileDataUri(null);
     }
   };
 
   const calculateCost = useCallback(() => {
-    const numP = parseInt(numPagesStr);
-    const numC = parseInt(numCopiesStr);
+    const numP = parseInt(serviceType === 'document' ? numPagesStr : "1"); // For photos, base pages = 1 (image itself)
+    const numC = parseInt(numCopiesStr); // For docs: copies of set; For photos: number of 4x6s or passport sheets
 
-    if (isNaN(numP) || numP <= 0 || isNaN(numC) || numC <= 0 || pageCountStatus === 'processing') {
+    if (isNaN(numP) || numP <= 0 || isNaN(numC) || numC <= 0 || (serviceType === 'document' && pageCountStatus === 'processing')) {
       setPrintCost(0); return;
     }
-    let costPerPage = printColor === 'color' ? 0.50 : 0.10;
-    const paperSizeMultipliers: Record<typeof paperSize, number> = { A4: 1.0, Letter: 1.0, Legal: 1.2 };
-    costPerPage *= paperSizeMultipliers[paperSize];
-    let currentPrintCost = numP * costPerPage * numC;
-    if (printSides === 'double') currentPrintCost *= 0.9;
+
+    let currentPrintCost = 0;
+    if (serviceType === 'document') {
+      let costPerPage = printColor === 'color' ? 0.50 : 0.10;
+      const paperSizeMultipliers: Record<typeof paperSize, number> = { A4: 1.0, Letter: 1.0, Legal: 1.2 };
+      costPerPage *= paperSizeMultipliers[paperSize];
+      currentPrintCost = numP * costPerPage * numC;
+      if (printSides === 'double') currentPrintCost *= 0.9;
+    } else { // Photo service
+      if (photoType === 'passport') { // 8 passport photos on a 4x6 sheet
+        currentPrintCost = (printColor === 'color' ? 25 : 15) * numC; // numC is number of sheets
+      } else if (photoType === '4x6_inch') {
+        currentPrintCost = (printColor === 'color' ? 12 : 7) * numC; // numC is number of 4x6 prints
+      }
+    }
     setPrintCost(currentPrintCost);
-  }, [numPagesStr, numCopiesStr, printColor, paperSize, printSides, pageCountStatus]);
+  }, [numPagesStr, numCopiesStr, printColor, paperSize, printSides, pageCountStatus, serviceType, photoType]);
 
   useEffect(() => {
     calculateCost();
@@ -143,14 +175,24 @@ export default function XeroxForm() {
     setTotalCost(printCost + currentDeliveryFee);
   }, [printCost, deliveryMethod]);
 
-  const validateStep1_UploadSettings = () => {
+  const validateStep_ServiceType = () => {
+    return !!serviceType;
+  }
+
+  const validateStep_UploadSettings = () => {
     if (!authContext.user) return false;
-    const numP = parseInt(numPagesStr);
-    const isFileValid = !!file && !!fileDataUri;
-    return isFileValid && !isNaN(numP) && numP > 0 && pageCountStatus !== 'processing';
+    const isFileValid = !!file; // For photos, fileDataUri will be set if file is valid. For PDFs, pageCountStatus indicates processing success.
+
+    if (serviceType === 'document') {
+      const numP = parseInt(numPagesStr);
+      return isFileValid && !isNaN(numP) && numP > 0 && pageCountStatus !== 'processing' && pageCountStatus !== 'error';
+    } else { // Photo
+      const numC = parseInt(numCopiesStr);
+      return isFileValid && !isNaN(numC) && numC > 0;
+    }
   };
 
-  const validateStep3_DeliveryDetails = () => {
+  const validateStep_DeliveryDetails = () => {
     if (!authContext.user) return false;
     if (deliveryMethod === 'pickup') return !!selectedPickupCenter;
     if (deliveryMethod === 'home_delivery') {
@@ -164,17 +206,24 @@ export default function XeroxForm() {
   };
 
   const handleNextStep = () => {
-    if (!authContext.user) {
+    if (!authContext.user && currentStep !== 'service_type') { // Allow service type selection without login
       toast({ title: "Authentication Required", description: "Please sign in to proceed.", variant: "destructive" });
       return;
     }
-    if (currentStep === 'upload_settings' && validateStep1_UploadSettings()) setCurrentStep('delivery_method');
+
+    if (currentStep === 'service_type' && validateStep_ServiceType()) setCurrentStep('upload_settings');
+    else if (currentStep === 'upload_settings' && validateStep_UploadSettings()) setCurrentStep('delivery_method');
     else if (currentStep === 'delivery_method') setCurrentStep('delivery_details');
-    else if (currentStep === 'delivery_details' && validateStep3_DeliveryDetails()) setCurrentStep('summary_payment');
-    else if (currentStep === 'upload_settings' && !validateStep1_UploadSettings()) {
-       toast({ title: "Incomplete Information", description: "Please upload a valid PDF and ensure page count is set.", variant: "destructive" });
-    } else if (currentStep === 'delivery_details' && !validateStep3_DeliveryDetails()){
-       toast({ title: "Incomplete Delivery Information", description: "Please complete the delivery or pickup details.", variant: "destructive" });
+    else if (currentStep === 'delivery_details' && validateStep_DeliveryDetails()) setCurrentStep('summary_payment');
+    else {
+       let errorTitle = "Incomplete Information";
+       let errorDesc = "Please complete the current step.";
+       if (currentStep === 'upload_settings' && !validateStep_UploadSettings()) {
+          errorDesc = serviceType === 'document' ? "Please upload a valid PDF and ensure page count is set." : "Please upload an image and set number of prints.";
+       } else if (currentStep === 'delivery_details' && !validateStep_DeliveryDetails()){
+          errorDesc = "Please complete the delivery or pickup details.";
+       }
+       toast({ title: errorTitle, description: errorDesc, variant: "destructive" });
     }
   };
 
@@ -182,22 +231,23 @@ export default function XeroxForm() {
     if (currentStep === 'summary_payment') setCurrentStep('delivery_details');
     else if (currentStep === 'delivery_details') setCurrentStep('delivery_method');
     else if (currentStep === 'delivery_method') setCurrentStep('upload_settings');
+    else if (currentStep === 'upload_settings') setCurrentStep('service_type');
   };
 
-  const proceedToPaymentPage = () => {
+  const proceedToPaymentPage = async () => {
     if (!authContext.user) {
         toast({ title: "Authentication Required", description: "Please sign in to proceed.", variant: "destructive" });
         return;
     }
-    if (!validateStep1_UploadSettings() || !validateStep3_DeliveryDetails()) {
+    if (!validateStep_UploadSettings() || !validateStep_DeliveryDetails()) {
         toast({ title: "Incomplete Information", description: "Please ensure all previous steps are complete.", variant: "destructive" });
         return;
     }
-    if (!fileDataUri) {
-        toast({ title: "File Error", description: "File data is missing. Please re-upload your PDF.", variant: "destructive" });
+    if (!file) { // Check if file object exists, as fileDataUri might be generated on demand
+        toast({ title: "File Error", description: "File data is missing. Please re-upload.", variant: "destructive" });
         return;
     }
-     if (isNaN(totalCost) || totalCost <= 0) {
+    if (isNaN(totalCost) || totalCost <= 0) {
         toast({ title: "Invalid Order Total", description: "Cannot proceed with zero or invalid cost. Please review settings.", variant: "destructive" });
         return;
     }
@@ -206,20 +256,50 @@ export default function XeroxForm() {
     setFormSubmissionStatus('navigating');
     toast({ title: "Proceeding to Secure Payment", description: "All print orders require online payment. Redirecting..." });
 
+    let currentFileDataUri = fileDataUri; // Use already generated URI for photos
+    if (serviceType === 'document' && file && !fileDataUri) { // Generate for PDF if not already done
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            currentFileDataUri = arrayBufferToDataUri(arrayBuffer, file.type);
+        } catch (error) {
+            console.error("Error generating Data URI for PDF:", error);
+            toast({ title: "File Processing Error", description: "Could not prepare PDF for payment. Please try again.", variant: "destructive"});
+            setIsSubmitting(false);
+            setFormSubmissionStatus('error');
+            return;
+        }
+    }
+    
+    if (!currentFileDataUri) {
+        toast({ title: "File Error", description: "File data could not be prepared. Please re-upload.", variant: "destructive" });
+        setIsSubmitting(false);
+        setFormSubmissionStatus('error');
+        return;
+    }
+
+
     const queryParams = new URLSearchParams({
-        fileName: fileName || "Untitled.pdf",
-        numPages: numPagesStr,
+        serviceType,
+        fileName: fileName || "Untitled",
         numCopies: numCopiesStr,
         printColor,
-        paperSize,
-        printSides,
-        layout,
         totalCost: totalCost.toString(),
         deliveryMethod,
         userId: authContext.user.uid,
         userEmail: authContext.user.email || '',
         userName: authContext.user.displayName || '',
     });
+
+    if (serviceType === 'document') {
+        queryParams.set('numPages', numPagesStr);
+        queryParams.set('paperSize', paperSize);
+        queryParams.set('printSides', printSides);
+        queryParams.set('layout', layout);
+    } else { // Photo
+        queryParams.set('photoType', photoType);
+        // For photos, numPagesStr is implicitly 1 for calculation, don't need to send to payment page if it's confusing.
+        // numCopiesStr is already number of prints/sheets.
+    }
 
     if (deliveryMethod === 'home_delivery') {
         queryParams.set('street', homeDeliveryAddress.street);
@@ -231,33 +311,58 @@ export default function XeroxForm() {
         queryParams.set('pickupCenter', selectedPickupCenter);
     }
 
-    sessionStorage.setItem('pendingOrderFileDataUri', fileDataUri);
+    sessionStorage.setItem('pendingOrderFileDataUri', currentFileDataUri);
     router.push(`/payment?${queryParams.toString()}`);
+    // setIsSubmitting(false) will happen on new page or if navigation fails
   };
 
 
   const getStepTitle = () => {
     switch(currentStep) {
-      case 'upload_settings': return "1. Upload & Print Settings";
-      case 'delivery_method': return "2. Delivery Method";
-      case 'delivery_details': return `3. ${deliveryMethod === 'pickup' ? 'Pickup Details' : 'Delivery Address'}`;
-      case 'summary_payment': return "4. Summary & Proceed to Payment";
+      case 'service_type': return "1. Select Service Type";
+      case 'upload_settings': return `2. Upload & Settings for ${serviceType === 'document' ? 'Document' : 'Photo'}`;
+      case 'delivery_method': return "3. Delivery Method";
+      case 'delivery_details': return `4. ${deliveryMethod === 'pickup' ? 'Pickup Details' : 'Delivery Address'}`;
+      case 'summary_payment': return "5. Summary & Proceed to Payment";
       default: return "Print Service";
     }
   };
+  
+  const fileInputAccept = serviceType === 'document' ? '.pdf' : 'image/jpeg, image/png, image/jpg';
+
 
   return (
     <div className="space-y-6 md:space-y-8">
        <Card className="shadow-xl rounded-xl overflow-hidden">
         <CardHeader className="bg-primary/5">
           <CardTitle className="font-headline text-2xl text-primary">{getStepTitle()}</CardTitle>
-           {!authContext.user && currentStep === 'upload_settings' && (
+           {!authContext.user && currentStep !== 'service_type' && (
             <CardDescription className="text-destructive font-medium">
-                Please sign in with Google to upload files and place an order.
+                Please sign in with Google to configure your order.
             </CardDescription>
           )}
         </CardHeader>
         <CardContent className="p-6">
+          {currentStep === 'service_type' && (
+            <div className="space-y-4">
+              <Label className="text-lg font-medium">What would you like to print?</Label>
+              <RadioGroup value={serviceType} onValueChange={(val) => setServiceType(val as ServiceType)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Label htmlFor="document_service" className="flex flex-col items-center justify-center text-center p-6 border rounded-lg hover:bg-secondary/50 cursor-pointer has-[:checked]:bg-primary/10 has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary">
+                  <RadioGroupItem value="document" id="document_service" className="sr-only" />
+                  <FileText size={48} className="mb-3 text-primary" />
+                  <span className="text-xl font-semibold">Documents</span>
+                  <span className="text-sm text-muted-foreground">PDFs, Reports, Assignments</span>
+                </Label>
+                <Label htmlFor="photo_service" className="flex flex-col items-center justify-center text-center p-6 border rounded-lg hover:bg-secondary/50 cursor-pointer has-[:checked]:bg-primary/10 has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary">
+                  <RadioGroupItem value="photo" id="photo_service" className="sr-only" />
+                  <Camera size={48} className="mb-3 text-primary" />
+                  <span className="text-xl font-semibold">Photos</span>
+                  <span className="text-sm text-muted-foreground">Passport, 4x6 Inch Prints</span>
+                </Label>
+              </RadioGroup>
+            </div>
+          )}
+
           {currentStep === 'upload_settings' && (
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-6">
@@ -265,16 +370,23 @@ export default function XeroxForm() {
                     onFileChange={handleFileChange}
                     fileName={fileName}
                     isAuthenticated={!!authContext.user}
+                    accept={fileInputAccept}
+                    serviceType={serviceType}
                 />
                 {file && authContext.user && (
                   <PrintSettings
+                    serviceType={serviceType}
+                    // Document settings
                     numPages={numPagesStr} setNumPages={setNumPagesStr}
                     pageCountStatus={pageCountStatus}
-                    numCopies={numCopiesStr} setNumCopies={setNumCopiesStr}
-                    printColor={printColor} setPrintColor={setPrintColor}
                     paperSize={paperSize} setPaperSize={setPaperSize}
                     printSides={printSides} setPrintSides={setPrintSides}
                     layout={layout} setLayout={setLayout}
+                    // Photo settings
+                    photoType={photoType} setPhotoType={setPhotoType}
+                    // Common settings
+                    numCopies={numCopiesStr} setNumCopies={setNumCopiesStr}
+                    printColor={printColor} setPrintColor={setPrintColor}
                   />
                 )}
               </div>
@@ -283,21 +395,35 @@ export default function XeroxForm() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-xl font-semibold text-accent">
-                        Schematic Preview
+                        {serviceType === 'document' ? 'Schematic Preview' : 'Image Preview'}
                       </CardTitle>
                       <CardDescription>
-                        First physical sheet layout.
+                        {serviceType === 'document' ? 'First physical sheet layout.' : 'Your selected image.'}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <PrintPreview
+                        serviceType={serviceType}
                         fileName={fileName}
+                        fileDataUri={fileDataUri} // Pass data URI for image preview
+                        // Document specific
                         numPages={numPagesStr}
                         printSides={printSides}
                         layout={layout}
+                        // Photo specific
+                        photoType={photoType}
+                        numCopies={numCopiesStr}
                       />
                     </CardContent>
                   </Card>
+                )}
+                 {!authContext.user && (
+                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md text-center">
+                        <UserCheck className="mx-auto h-10 w-10 text-yellow-500 mb-2" />
+                        <p className="font-semibold text-yellow-700">Please Sign In</p>
+                        <p className="text-sm text-yellow-600">You need to be logged in to upload files and configure print settings.</p>
+                        <Button onClick={authContext.signInWithGoogle} className="mt-3" variant="outline" size="sm">Sign In with Google</Button>
+                    </div>
                 )}
               </div>
             </div>
@@ -350,13 +476,20 @@ export default function XeroxForm() {
                 <OrderSummary printCost={printCost} deliveryFee={actualDeliveryFee} />
               </div>
 
+              <p className="text-sm">Service Type: <span className="font-medium capitalize">{serviceType}</span></p>
+              {serviceType === 'photo' && <p className="text-sm">Photo Type: <span className="font-medium">{photoType === '4x6_inch' ? '4x6 Inch' : 'Passport Photos'}</span></p>}
+              <p className="text-sm">File: <span className="font-medium">{fileName || "N/A"}</span></p>
+              <p className="text-sm">Number of {serviceType === 'document' ? 'Sets' : photoType === 'passport' ? 'Passport Photo Sheets' : '4x6 Prints'}: <span className="font-medium">{numCopiesStr}</span></p>
+              <p className="text-sm">Color: <span className="font-medium capitalize">{printColor}</span></p>
+
+
               {deliveryMethod === 'pickup' && selectedPickupCenter && (
                 <p className="text-sm">Pickup from: <span className="font-medium">{selectedPickupCenter}</span>.</p>
               )}
                {deliveryMethod === 'home_delivery' && (
                 <div>
-                  <h4 className="font-semibold">Deliver to:</h4>
-                  <p className="text-sm text-muted-foreground">
+                  <h4 className="font-semibold text-sm">Deliver to:</h4>
+                  <p className="text-xs text-muted-foreground">
                     {homeDeliveryAddress.street}, {homeDeliveryAddress.city}, {homeDeliveryAddress.state} - {homeDeliveryAddress.zip}, {homeDeliveryAddress.country}
                   </p>
                 </div>
@@ -386,7 +519,7 @@ export default function XeroxForm() {
        </Card>
 
       <div className="flex justify-between mt-6">
-        {currentStep !== 'upload_settings' ? (
+        {currentStep !== 'service_type' ? (
           <Button variant="outline" onClick={handlePrevStep} disabled={isSubmitting}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Previous
           </Button>
@@ -394,7 +527,11 @@ export default function XeroxForm() {
         {currentStep !== 'summary_payment' && (
           <Button
             onClick={handleNextStep}
-            disabled={isSubmitting || (currentStep === 'upload_settings' && (!authContext.user || !validateStep1_UploadSettings())) || (currentStep === 'delivery_details' && (!authContext.user || !validateStep3_DeliveryDetails()))}
+            disabled={isSubmitting || 
+              (currentStep === 'upload_settings' && (!authContext.user || !validateStep_UploadSettings())) || 
+              (currentStep === 'delivery_details' && (!authContext.user || !validateStep_DeliveryDetails())) ||
+              (currentStep === 'service_type' && !validateStep_ServiceType())
+            }
             className="ml-auto"
           >
             Next <ArrowRight className="ml-2 h-4 w-4" />

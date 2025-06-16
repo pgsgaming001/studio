@@ -4,13 +4,14 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { CreditCard, Loader2, AlertTriangle, ArrowLeft, CheckCircle, ShoppingCart, Home, Package, Info } from 'lucide-react';
+import { CreditCard, Loader2, AlertTriangle, ArrowLeft, CheckCircle, Home, Package, Info, FileText, Camera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import React, { useEffect, useState, Suspense } from 'react';
 import { submitOrderToMongoDB, type OrderFormPayload, type RazorpayPaymentDetails } from '@/app/actions/submitOrder';
 import type { Address } from '@/components/features/xerox/DeliveryAddress';
 import { createRazorpayOrder } from '@/app/actions/createRazorpayOrder';
 import { useAuth } from '@/context/AuthContext';
+import type { ServiceType, PhotoType } from '@/components/features/xerox/XeroxForm';
 
 declare global {
   interface Window {
@@ -27,7 +28,22 @@ function PaymentPageContent() {
   const authContext = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [orderDetails, setOrderDetails] = useState<Partial<OrderFormPayload & { totalCost: number }>>({});
+  // Initialize orderDetails with all potential fields for type safety
+  const [orderDetails, setOrderDetails] = useState<Partial<OrderFormPayload & { totalCost: number }>>({
+    serviceType: 'document', // Default or to be overridden
+    fileName: null,
+    numCopies: "1",
+    printColor: 'bw',
+    totalCost: 0,
+    deliveryMethod: 'pickup',
+    // Document specific
+    numPages: "1",
+    paperSize: 'A4',
+    printSides: 'single',
+    layout: '1up',
+    // Photo specific
+    photoType: '4x6_inch',
+  });
   const [fileDataUriForUpload, setFileDataUriForUpload] = useState<string | null>(null);
 
 
@@ -48,17 +64,16 @@ function PaymentPageContent() {
         console.error("PaymentPage: Invalid Order Data - ", errorMsg);
         setError(errorMsg);
         toast({title: "Invalid Order Data", description: "Missing or invalid critical details for payment. Please go back and check your order inputs.", variant: "destructive", duration: 7000});
-        setOrderDetails({}); 
+        setOrderDetails(prev => ({ ...prev, totalCost: 0 })); 
         return;
     }
 
     if (parsedCost < MINIMUM_ORDER_AMOUNT) {
         const errorMsg = `Order total (₹${parsedCost.toFixed(2)}) is below the minimum required amount of ₹${MINIMUM_ORDER_AMOUNT.toFixed(2)}. Please add more items or adjust your order.`;
         console.warn("PaymentPage: Order amount too low - ", errorMsg);
-        setError(errorMsg); // Set error to disable button
+        setError(errorMsg); 
         toast({title: "Order Amount Too Low", description: errorMsg, variant: "destructive", duration: 10000});
-        // Still set order details so user can see the amount, but payment button will be disabled due to `error` state
-        setOrderDetails({ totalCost: parsedCost }); 
+        setOrderDetails(prev => ({ ...prev, totalCost: parsedCost })); 
         return;
     }
 
@@ -67,24 +82,20 @@ function PaymentPageContent() {
         const errorMsg = "Uploaded file data not found. Please restart the order process by re-uploading your file.";
         console.error("PaymentPage: File Error - ", errorMsg);
         setError(errorMsg);
-        toast({title: "File Error", description: "File data missing. Please re-upload your PDF and complete the form again.", variant: "destructive", duration: 7000});
-        setOrderDetails({}); // Clear details to prevent proceeding
+        toast({title: "File Error", description: "File data missing. Please re-upload your PDF/image and complete the form again.", variant: "destructive", duration: 7000});
+        setOrderDetails(prev => ({ ...prev, totalCost: 0 })); 
         return;
     }
     setFileDataUriForUpload(storedFileDataUri);
 
-    // Clear previous error if any valid details are now loaded
     setError(null); 
     setOrderDetails({
+        serviceType: params.serviceType as ServiceType || 'document',
         fileName: params.fileName || null,
-        numPages: params.numPages,
-        numCopies: params.numCopies,
-        printColor: params.printColor as 'color' | 'bw',
-        paperSize: params.paperSize as 'A4' | 'Letter' | 'Legal',
-        printSides: params.printSides as 'single' | 'double',
-        layout: params.layout as '1up' | '2up',
+        numCopies: params.numCopies || "1",
+        printColor: params.printColor as 'color' | 'bw' || 'bw',
         totalCost: parsedCost,
-        deliveryMethod: params.deliveryMethod as 'pickup' | 'home_delivery',
+        deliveryMethod: params.deliveryMethod as 'pickup' | 'home_delivery' || 'pickup',
         deliveryAddress: {
             street: params.street || '',
             city: params.city || '',
@@ -96,8 +107,15 @@ function PaymentPageContent() {
         userId: params.userId,
         userEmail: params.userEmail,
         userName: params.userName,
+        // Document specific from params
+        numPages: params.serviceType === 'document' ? params.numPages : undefined,
+        paperSize: params.serviceType === 'document' ? params.paperSize as 'A4' | 'Letter' | 'Legal' : undefined,
+        printSides: params.serviceType === 'document' ? params.printSides as 'single' | 'double' : undefined,
+        layout: params.serviceType === 'document' ? params.layout as '1up' | '2up' : undefined,
+        // Photo specific from params
+        photoType: params.serviceType === 'photo' ? params.photoType as PhotoType : undefined,
     });
-    console.log("PaymentPage: Order details successfully initialized from query params:", { totalCost: parsedCost, deliveryMethod: params.deliveryMethod });
+    console.log("PaymentPage: Order details successfully initialized from query params:", { serviceType: params.serviceType, totalCost: parsedCost, deliveryMethod: params.deliveryMethod });
 
   }, [searchParams, toast]);
 
@@ -114,7 +132,7 @@ function PaymentPageContent() {
       console.error("PaymentPage: Invalid or low amount for payment - ", errorMsg);
       setError(errorMsg);
       toast({ title: "Invalid Amount", description: errorMsg, variant: "destructive" });
-      setIsProcessing(false); // Ensure processing state is reset
+      setIsProcessing(false); 
       return;
     }
     if (orderDetails.fileName && !fileDataUriForUpload) {
@@ -122,19 +140,19 @@ function PaymentPageContent() {
         console.error("PaymentPage: File Error - ", errorMsg);
         setError(errorMsg);
         toast({title: "File Error", description: errorMsg, variant: "destructive"});
-        setIsProcessing(false); // Ensure processing state is reset
+        setIsProcessing(false); 
         return;
     }
 
     setIsProcessing(true);
-    setError(null); // Clear previous errors
+    setError(null); 
     toast({ title: "Initiating Payment...", description: "Preparing secure payment gateway." });
     console.log("PaymentPage: Attempting to create Razorpay order with amount:", orderDetails.totalCost);
 
     try {
       const razorpayOrderResponse = await createRazorpayOrder({
-        amount: orderDetails.totalCost, // Already validated to be >= MINIMUM_ORDER_AMOUNT
-        currency: "INR", // Ensure this matches your Razorpay account currency
+        amount: orderDetails.totalCost, 
+        currency: "INR", 
       });
       console.log("PaymentPage: createRazorpayOrder response:", razorpayOrderResponse);
 
@@ -152,39 +170,49 @@ function PaymentPageContent() {
 
       const options = {
         key: rzpKeyId,
-        amount: razorpayOrderResponse.amount, // Amount in paise from Razorpay
+        amount: razorpayOrderResponse.amount, 
         currency: razorpayOrderResponse.currency,
-        name: "Xerox2U Print Service", // Your business name
-        description: `Order for ${orderDetails.fileName || 'document print'}`,
+        name: `Xerox2U ${orderDetails.serviceType === 'document' ? 'Print' : 'Photo'} Service`,
+        description: `Order for ${orderDetails.fileName || (orderDetails.serviceType === 'document' ? 'document print' : 'photo print')}`,
         order_id: razorpayOrderResponse.orderId,
         handler: async function (response: RazorpayPaymentDetails) {
           console.log("PaymentPage: Razorpay payment successful. Response:", response);
-          // Final order submission to MongoDB
+          
           const finalPayload: OrderFormPayload = {
-            ...(orderDetails as OrderFormPayload), 
+            ...(orderDetails as OrderFormPayload), // Cast needed due to Partial state
             fileDataUri: fileDataUriForUpload,
-            paymentMethod: 'razorpay', // Explicitly set
+            paymentMethod: 'razorpay', 
             paymentDetails: {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_order_id: response.razorpay_order_id,
               razorpay_signature: response.razorpay_signature,
             },
           };
+          // Ensure serviceType specific fields are correctly set based on orderDetails.serviceType
+          if (orderDetails.serviceType === 'document') {
+            finalPayload.photoType = undefined;
+          } else {
+            finalPayload.numPages = undefined;
+            finalPayload.paperSize = undefined;
+            finalPayload.printSides = undefined;
+            finalPayload.layout = undefined;
+          }
+
 
           try {
             console.log("PaymentPage: Submitting order to MongoDB with payload:", {...finalPayload, fileDataUri: finalPayload.fileDataUri ? 'PRESENT' : 'ABSENT'});
             const submissionResult = await submitOrderToMongoDB(finalPayload);
             console.log("PaymentPage: MongoDB submission result:", submissionResult);
-            sessionStorage.removeItem('pendingOrderFileDataUri'); // Clear stored file data
+            sessionStorage.removeItem('pendingOrderFileDataUri'); 
 
             if (submissionResult.success && submissionResult.orderId) {
               toast({ title: "Payment Successful & Order Placed!", description: `Order ID: ${submissionResult.orderId.substring(0,8)}...` });
 
-              // Navigate to confirmation page
               const queryParams = new URLSearchParams({
                 orderId: submissionResult.orderId,
                 deliveryMethod: orderDetails.deliveryMethod!,
-                amount: orderDetails.totalCost!.toFixed(2)
+                amount: orderDetails.totalCost!.toFixed(2),
+                serviceType: orderDetails.serviceType!
               });
               if (orderDetails.deliveryMethod === 'pickup' && submissionResult.pickupCode) {
                 queryParams.set('pickupCode', submissionResult.pickupCode);
@@ -193,31 +221,28 @@ function PaymentPageContent() {
               router.push(`/order-confirmation?${queryParams.toString()}`);
 
             } else {
-              // MongoDB submission failed after payment
               throw new Error(submissionResult.error || "Failed to save order after payment. Please contact support with your payment details.");
             }
           } catch (e: any) {
             console.error("PaymentPage: Order submission to MongoDB failed after payment:", e);
             setError(e.message || "Order submission failed after successful payment. Contact support.");
             toast({ title: "Order Submission Failed Post-Payment", description: e.message, variant: "destructive", duration: 10000 });
-            // CRITICAL: Payment succeeded but order saving failed. User needs to be informed to contact support.
-            // Potentially redirect to a specific error page with instructions.
           } finally {
-            setIsProcessing(false); // Always reset after handler
+            setIsProcessing(false); 
           }
         },
         prefill: {
           name: orderDetails.userName || '',
           email: orderDetails.userEmail || '',
-          // contact: 'your_customer_contact_if_available' // If you collect phone number
         },
         notes: {
           userId: orderDetails.userId || 'guest',
           fileName: orderDetails.fileName || 'N/A',
+          serviceType: orderDetails.serviceType || 'N/A',
           deliveryMethod: orderDetails.deliveryMethod || 'N/A',
         },
         theme: {
-          color: "#2E9AFF", // Your primary theme color
+          color: "#2E9AFF", 
         },
       };
 
@@ -229,45 +254,40 @@ function PaymentPageContent() {
         const errorCode = response.error?.code;
         const errorDescription = response.error?.description || "Payment failed.";
         const errorReason = response.error?.reason || "Unknown reason.";
-        const errorSource = response.error?.source;
-        const errorStep = response.error?.step;
         
-        const detailedErrorMsg = `${errorDescription} (Reason: ${errorReason}, Code: ${errorCode}, Source: ${errorSource}, Step: ${errorStep})`;
+        const detailedErrorMsg = `${errorDescription} (Reason: ${errorReason}, Code: ${errorCode})`;
         console.error("Detailed Razorpay failure:", detailedErrorMsg);
 
         setError(detailedErrorMsg);
         toast({
           title: "Payment Failed",
-          description: errorDescription, // Show a simpler message to user
+          description: errorDescription, 
           variant: "destructive",
           duration: 10000,
         });
-        setIsProcessing(false); // Reset processing state
+        setIsProcessing(false); 
       });
       
       rzpInstance.open();
       console.log("PaymentPage: Razorpay modal opened.");
-      // Note: setIsProcessing will be false from handler or payment.failed
 
     } catch (e: any) {
       console.error("PaymentPage: Error in handleRazorpayPayment (catch block):", e);
       setError(e.message || "An unexpected error occurred during payment initiation.");
       toast({ title: "Payment Initialization Failed", description: e.message, variant: "destructive", duration: 8000 });
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false); 
     }
   };
   
-  // Determine if payment button should be disabled
   const isButtonDisabled = isProcessing || 
                          !authContext.user || 
                          typeof orderDetails.totalCost !== 'number' || 
                          isNaN(orderDetails.totalCost) || 
                          orderDetails.totalCost < MINIMUM_ORDER_AMOUNT || 
-                         (!!orderDetails.fileName && !fileDataUriForUpload) || // If there's a filename, data URI must be present
-                         !!error; // Disable if there's an active error message preventing payment
+                         (!!orderDetails.fileName && !fileDataUriForUpload) || 
+                         !!error; 
 
-  // Loading state for initial data fetch from URL params
-  if (authContext.loading || (Object.keys(orderDetails).length === 0 && !error && typeof window !== 'undefined')) {
+  if (authContext.loading || (Object.keys(orderDetails).length === 0 && !error && typeof window !== 'undefined' && !orderDetails.totalCost)) { // Check orderDetails.totalCost
      return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4">
             <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
@@ -276,8 +296,7 @@ function PaymentPageContent() {
      );
   }
 
-  // If critical error prevents payment (e.g. no cost, file data missing for a file order)
-  if (error && (!orderDetails.totalCost || (orderDetails.fileName && !fileDataUriForUpload) || orderDetails.totalCost < MINIMUM_ORDER_AMOUNT)) {
+  if (error && (!orderDetails.totalCost || (orderDetails.fileName && !fileDataUriForUpload) || (orderDetails.totalCost && orderDetails.totalCost < MINIMUM_ORDER_AMOUNT))) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-destructive/10 p-4 text-center">
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
@@ -291,13 +310,14 @@ function PaymentPageContent() {
   }
   
   const displayTotalCost = typeof orderDetails.totalCost === 'number' ? orderDetails.totalCost.toFixed(2) : '0.00';
+  const serviceNameDisplay = orderDetails.serviceType === 'document' ? "Document Print" : "Photo Print";
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background to-secondary p-4">
       <Card className="w-full max-w-md shadow-xl rounded-xl">
         <CardHeader className="bg-primary/5">
           <CardTitle className="font-headline text-2xl text-primary flex items-center">
-            <CreditCard className="mr-3 h-7 w-7" /> Secure Payment for Print Service
+            <CreditCard className="mr-3 h-7 w-7" /> Secure Payment for {serviceNameDisplay} Service
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
@@ -317,9 +337,22 @@ function PaymentPageContent() {
           </div>
           <div className="text-xs text-muted-foreground p-3 bg-secondary/50 rounded-md space-y-1">
             <h4 className="font-semibold mb-1">Order Summary:</h4>
-            {orderDetails.fileName && <p className="truncate">File: {orderDetails.fileName}</p>}
-            <p>Pages: {orderDetails.numPages || 'N/A'}, Copies: {orderDetails.numCopies || 'N/A'}</p>
-            <p>Type: {orderDetails.printColor || 'N/A'}, {orderDetails.paperSize || 'N/A'}, {orderDetails.printSides || 'N/A'}, {orderDetails.layout || 'N/A'}</p>
+            {orderDetails.fileName && <p className="truncate flex items-center gap-1">{orderDetails.serviceType === 'document' ? <FileText size={14}/> : <Camera size={14}/>} File: {orderDetails.fileName}</p>}
+            
+            {orderDetails.serviceType === 'document' && (
+              <>
+                <p>Pages: {orderDetails.numPages || 'N/A'}, Copies: {orderDetails.numCopies || 'N/A'}</p>
+                <p>Type: {orderDetails.printColor || 'N/A'}, {orderDetails.paperSize || 'N/A'}, {orderDetails.printSides || 'N/A'}, {orderDetails.layout || 'N/A'}</p>
+              </>
+            )}
+            {orderDetails.serviceType === 'photo' && (
+              <>
+                <p>Photo Type: {orderDetails.photoType === '4x6_inch' ? '4x6 Inch' : 'Passport Photos'}</p>
+                <p>Prints/Sheets: {orderDetails.numCopies || 'N/A'}</p>
+                <p>Color: {orderDetails.printColor || 'N/A'}</p>
+              </>
+            )}
+
              {orderDetails.deliveryMethod === 'home_delivery' && orderDetails.deliveryAddress && (
               <p className="flex items-center gap-1"><Home size={14}/> Deliver to: {orderDetails.deliveryAddress.street || 'N/A'}, {orderDetails.deliveryAddress.city || 'N/A'}</p>
             )}
@@ -327,7 +360,7 @@ function PaymentPageContent() {
               <p className="flex items-center gap-1"><Package size={14}/> Pickup at: {orderDetails.pickupCenter}</p>
             )}
           </div>
-          {error && (typeof orderDetails.totalCost === 'number' && orderDetails.totalCost >= MINIMUM_ORDER_AMOUNT) && ( // Display non-critical, potentially transient errors
+          {error && (typeof orderDetails.totalCost === 'number' && orderDetails.totalCost >= MINIMUM_ORDER_AMOUNT) && ( 
             <div className="p-3 bg-destructive/10 border border-destructive/50 rounded-md text-sm text-destructive text-center flex items-center justify-center gap-2">
                 <Info size={16} className="shrink-0" /> <span>{error}</span>
             </div>
@@ -336,7 +369,7 @@ function PaymentPageContent() {
         <CardFooter className="flex flex-col gap-3 pt-2">
           <Button
             onClick={handleRazorpayPayment}
-            disabled={isButtonDisabled} // Updated disable logic
+            disabled={isButtonDisabled} 
             className="w-full bg-green-600 hover:bg-green-700 text-white text-lg py-6 shadow-md"
           >
             {isProcessing ? (
@@ -356,7 +389,6 @@ function PaymentPageContent() {
 }
 
 export default function PaymentPage() {
-  // Suspense for initial data loading from URL search params
   return (
     <Suspense fallback={
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -368,4 +400,3 @@ export default function PaymentPage() {
     </Suspense>
   );
 }
-
