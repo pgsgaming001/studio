@@ -14,14 +14,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Loader2, UploadCloud, ImagePlus, Trash2, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, UploadCloud, ImagePlus, Trash2, AlertCircle, CheckCircle, Edit } from "lucide-react";
 import Image from "next/image";
 import type { ProductFormPayload } from "@/app/actions/addProduct"; 
-import { addProduct } from "@/app/actions/addProduct"; 
+import { addProduct } from "@/app/actions/addProduct";
+import type { ProductDisplayData } from "@/app/actions/getProductById";
+import { updateProduct, type UpdateProductDataPayload } from "@/app/actions/updateProduct"; // Import updateProduct
 import imageCompression from 'browser-image-compression';
 
 const CATEGORY_OPTIONS = ["Electronics", "Home Goods", "Fashion", "Office"];
 
+// Schema for client-side form validation, includes imageFiles for 'add' mode
 const clientProductFormSchema = z.object({
   name: z.string().min(3, "Product name must be at least 3 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
@@ -37,7 +40,7 @@ const clientProductFormSchema = z.object({
                     message: "Only image files are allowed.",
                   })
                  .refine(files => files === null || files.length <= 5, "Maximum 5 images allowed.")
-                 .optional(),
+                 .optional(), // Optional, especially for edit mode where images might not be changed
   tags: z.string().optional(),
   status: z.enum(['active', 'draft', 'inactive']).default('draft'),
   isFeatured: z.boolean().default(false),
@@ -46,7 +49,8 @@ const clientProductFormSchema = z.object({
 type ClientProductFormData = z.infer<typeof clientProductFormSchema>;
 
 interface ProductFormProps {
-  mode?: 'add' | 'edit';
+  mode: 'add' | 'edit';
+  productToEdit?: ProductDisplayData; // Includes ID and all fields for pre-filling
 }
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -59,19 +63,19 @@ const fileToDataUri = (file: File): Promise<string> => {
 };
 
 
-export function ProductForm({ mode = 'add' }: ProductFormProps) {
+export function ProductForm({ mode, productToEdit }: ProductFormProps) {
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]); // For new uploads
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]); // For displaying existing images in edit mode
 
-
-  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<ClientProductFormData>({
+  const { register, handleSubmit, control, watch, setValue, formState: { errors }, reset } = useForm<ClientProductFormData>({
     resolver: zodResolver(clientProductFormSchema),
     defaultValues: {
       name: "",
       description: "",
-      category: "", // Default to empty, user must select
+      category: "",
       price: 0,
       originalPrice: undefined,
       stock: 0,
@@ -82,17 +86,36 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
     },
   });
   
+  useEffect(() => {
+    if (mode === 'edit' && productToEdit) {
+      reset({
+        name: productToEdit.name,
+        description: productToEdit.description,
+        category: productToEdit.category,
+        price: productToEdit.price,
+        originalPrice: productToEdit.originalPrice,
+        stock: productToEdit.stock,
+        tags: productToEdit.tags?.join(', ') || "",
+        status: productToEdit.status || 'draft',
+        isFeatured: productToEdit.isFeatured || false,
+        imageFiles: null, // Don't pre-fill file input
+      });
+      setExistingImageUrls(productToEdit.images || (productToEdit.image ? [productToEdit.image] : []));
+    }
+  }, [mode, productToEdit, reset]);
+  
   const imageFiles = watch("imageFiles");
 
   useEffect(() => {
+    // This effect is for previewing NEWLY selected files in 'add' mode or if we allow adding more in 'edit' mode later
     if (imageFiles && imageFiles.length > 0) {
-      const newPreviews: string[] = [];
+      const newPreviewsArray: string[] = [];
       Array.from(imageFiles).forEach(file => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          newPreviews.push(reader.result as string);
-          if (newPreviews.length === imageFiles.length) {
-            setImagePreviews(newPreviews);
+          newPreviewsArray.push(reader.result as string);
+          if (newPreviewsArray.length === imageFiles.length) {
+            setImagePreviews(newPreviewsArray);
           }
         };
         reader.readAsDataURL(file);
@@ -105,61 +128,70 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
 
   const onSubmit = async (data: ClientProductFormData) => {
     setIsSubmitting(true);
-    toast({ title: "Processing...", description: `${mode === 'add' ? 'Compressing images and adding' : 'Compressing images and updating'} product. Please wait.` });
+    toast({ title: "Processing...", description: `${mode === 'add' ? 'Adding' : 'Updating'} product. Please wait.` });
 
-    let imageDataUris: string[] = [];
-    if (data.imageFiles && data.imageFiles.length > 0) {
-        const compressionOptions = {
-            maxSizeMB: 0.5,
-            maxWidthOrHeight: 1024,
-            useWebWorker: true,
-        };
-        toast({ title: "Compressing Images...", description: `Starting image compression for ${data.imageFiles.length} file(s). This may take a moment.` });
-        for (const file of Array.from(data.imageFiles)) {
-            try {
-                console.log(`Original file: ${file.name}, size: ${(file.size / 1024 / 1024).toFixed(2)} MB, type: ${file.type}`);
-                
-                const compressedFile = await imageCompression(file, compressionOptions);
-                console.log(`Compressed file: ${compressedFile.name}, size: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB, type: ${compressedFile.type}`);
-                
-                const dataUri = await fileToDataUri(compressedFile);
-                imageDataUris.push(dataUri);
-                toast({ title: "Image Compressed", description: `${file.name} compressed successfully. New size: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB` });
-
-            } catch (error) {
-                console.error("Error compressing or converting file to data URI:", error);
-                let errorMessage = `Failed to process image: ${file.name}.`;
-                if (error instanceof Error) {
-                    errorMessage += ` ${error.message}`;
-                }
-                toast({ variant: "destructive", title: "Image Processing Error", description: errorMessage });
-                setIsSubmitting(false);
-                return;
-            }
-        }
-         toast({ title: "Image Compression Complete", description: "All images processed." });
-    }
-    
-    const productPayload: ProductFormPayload & { imageDataUris?: string[] } = {
+    if (mode === 'edit' && productToEdit?.id) {
+      const updatePayload: UpdateProductDataPayload = {
         name: data.name,
         description: data.description,
         category: data.category,
         price: data.price,
-        originalPrice: data.originalPrice,
+        originalPrice: data.originalPrice || undefined,
         stock: data.stock,
-        tags: data.tags || "",
+        tags: data.tags,
         status: data.status,
         isFeatured: data.isFeatured,
-        images: [], 
-        imageDataUris: imageDataUris, 
-    };
+      };
+      // Image updates are deferred for now in edit mode.
+      // If new imageFiles were selected, logic to upload/replace them would go here.
+      // For now, updateProduct action only handles non-image fields.
 
+      const result = await updateProduct(productToEdit.id, updatePayload);
+      if (result.success) {
+        toast({ variant: "default", title: "Product Updated!", description: `Product "${data.name}" has been successfully updated.` });
+        router.push("/admin/ecommerce-dashboard"); 
+      } else {
+        let errorDescription = result.error || "An unknown error occurred.";
+        if (result.issues) {
+            errorDescription = result.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ');
+        }
+        toast({ variant: "destructive", title: "Failed to Update Product", description: errorDescription });
+      }
 
-    if (mode === 'add') {
-      console.log("Submitting product payload (add mode):", { ...productPayload, imageDataUris: productPayload.imageDataUris?.map(uri => uri.substring(0,50) + "...")});
+    } else if (mode === 'add') {
+      let imageDataUris: string[] = [];
+      if (data.imageFiles && data.imageFiles.length > 0) {
+          const compressionOptions = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+          for (const file of Array.from(data.imageFiles)) {
+              try {
+                  const compressedFile = await imageCompression(file, compressionOptions);
+                  const dataUri = await fileToDataUri(compressedFile);
+                  imageDataUris.push(dataUri);
+              } catch (error) {
+                  // Handle compression/conversion error
+                  toast({ variant: "destructive", title: "Image Processing Error", description: `Failed to process image: ${file.name}.` });
+                  setIsSubmitting(false);
+                  return;
+              }
+          }
+      }
+      
+      const productPayload: ProductFormPayload & { imageDataUris?: string[] } = {
+          name: data.name,
+          description: data.description,
+          category: data.category,
+          price: data.price,
+          originalPrice: data.originalPrice,
+          stock: data.stock,
+          tags: data.tags || "",
+          status: data.status,
+          isFeatured: data.isFeatured,
+          images: [], 
+          imageDataUris: imageDataUris, 
+      };
       const result = await addProduct(productPayload);
       if (result.success && result.productId) {
-        toast({ variant: "default", title: "Product Added!", description: `Product "${data.name}" has been successfully added. ID: ${result.productId.substring(0,8)}...` });
+        toast({ variant: "default", title: "Product Added!", description: `Product "${data.name}" has been successfully added.` });
         router.push("/admin/ecommerce-dashboard"); 
       } else {
         let errorDescription = result.error || "An unknown error occurred.";
@@ -168,10 +200,7 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
         }
         toast({ variant: "destructive", title: "Failed to Add Product", description: errorDescription });
       }
-    } else {
-      toast({ title: "Update Not Implemented", description: "Product update functionality is pending." });
     }
-
     setIsSubmitting(false);
   };
 
@@ -179,7 +208,8 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-primary">
+          <CardTitle className="text-2xl font-semibold text-primary flex items-center">
+            {mode === 'add' ? <ImagePlus className="mr-3 h-7 w-7" /> : <Edit className="mr-3 h-7 w-7" />}
             {mode === 'add' ? 'Add New Product' : 'Edit Product'}
           </CardTitle>
         </CardHeader>
@@ -196,7 +226,7 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
                 name="category"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={productToEdit?.category || ""}>
                     <SelectTrigger id="category" className={errors.category ? "border-destructive" : ""}>
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
@@ -238,28 +268,52 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="imageFiles">Product Images (Max 5, compressed to ~0.5MB each)</Label>
-            <Input 
-              id="imageFiles" 
-              type="file" 
-              multiple 
-              accept="image/*" 
-              {...register("imageFiles")} 
-              className={`mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 ${errors.imageFiles ? "border-destructive" : ""}`}
-            />
-            {errors.imageFiles && <p className="text-sm text-destructive mt-1">{errors.imageFiles.message}</p>}
-            
-            {(imagePreviews.length > 0) && (
-                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {imagePreviews.map((src, index) => (
-                    <div key={index} className="relative aspect-square border rounded-md overflow-hidden shadow">
-                        <Image src={src} alt={`Preview ${index + 1}`} fill style={{ objectFit: 'cover' }} />
-                    </div>
+          {/* Image Upload Section - Hidden in Edit Mode for now */}
+          {mode === 'add' && (
+            <div>
+              <Label htmlFor="imageFiles">Product Images (Max 5, compressed to ~0.5MB each)</Label>
+              <Input 
+                id="imageFiles" 
+                type="file" 
+                multiple 
+                accept="image/*" 
+                {...register("imageFiles")} 
+                className={`mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 ${errors.imageFiles ? "border-destructive" : ""}`}
+              />
+              {errors.imageFiles && <p className="text-sm text-destructive mt-1">{errors.imageFiles.message}</p>}
+              
+              {(imagePreviews.length > 0) && (
+                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {imagePreviews.map((src, index) => (
+                      <div key={index} className="relative aspect-square border rounded-md overflow-hidden shadow">
+                          <Image src={src} alt={`Preview ${index + 1}`} fill style={{ objectFit: 'cover' }} />
+                      </div>
+                      ))}
+                  </div>
+              )}
+            </div>
+          )}
+
+          {mode === 'edit' && existingImageUrls.length > 0 && (
+            <div>
+                <Label>Current Product Images</Label>
+                <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {existingImageUrls.map((url, index) => (
+                        <div key={index} className="relative aspect-square border rounded-md overflow-hidden shadow">
+                            <Image src={url} alt={`Existing image ${index + 1}`} fill style={{ objectFit: 'cover' }} sizes="100px" />
+                        </div>
                     ))}
                 </div>
-            )}
-          </div>
+                <p className="text-xs text-muted-foreground mt-2">Image editing (add/remove) is not yet supported in this form.</p>
+            </div>
+          )}
+           {mode === 'edit' && existingImageUrls.length === 0 && (
+             <div>
+                <Label>Product Images</Label>
+                <p className="text-sm text-muted-foreground mt-1">No images currently associated with this product. Image editing is not yet supported.</p>
+            </div>
+           )}
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -273,7 +327,7 @@ export function ProductForm({ mode = 'add' }: ProductFormProps) {
                 name="status"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={productToEdit?.status || "draft"}>
                     <SelectTrigger id="status" className={errors.status ? "border-destructive" : ""}>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>

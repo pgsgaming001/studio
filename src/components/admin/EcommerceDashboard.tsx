@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const VALID_ECOMM_STATUSES: EcommOrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-const ADMIN_EMAIL = 'pgsgaming001@gmail.com';
 
 const initialEcommerceSummary = {
   totalActiveProducts: 0,
@@ -38,7 +37,7 @@ const initialEcommerceSummary = {
   newCustomersMonth: 0,
 };
 
-export default function EcommerceDashboardPage() {
+export default function EcommerceDashboard() {
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [ecommOrders, setEcommOrders] = useState<EcommOrderDisplayData[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
@@ -47,8 +46,7 @@ export default function EcommerceDashboardPage() {
   const [errorOrders, setErrorOrders] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const authContext = useAuth();
-
+  
   const [summaryData, setSummaryData] = useState(initialEcommerceSummary);
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -57,68 +55,54 @@ export default function EcommerceDashboardPage() {
 
 
   useEffect(() => {
-    if (!authContext.loading) {
-      if (!authContext.user) {
-        router.push('/'); 
-        toast({ title: "Access Denied", description: "Please sign in to access the admin dashboard.", variant: "destructive" });
-        return;
-      } else if (authContext.user.email !== ADMIN_EMAIL) { 
-        router.push('/');
-        toast({ title: "Access Denied", description: "You are not authorized to view this page.", variant: "destructive" });
-        return;
-      }
+    const fetchAdminProducts = async () => {
+    setIsLoadingProducts(true);
+    setErrorProducts(null);
+    try {
+        const result = await getProducts({});
+        if (result.error) {
+        throw new Error(result.error);
+        }
+        setProducts(result.products);
+        setSummaryData(prev => ({
+        ...prev,
+        totalActiveProducts: result.products.filter(p => p.status === 'active').length
+        }));
+    } catch (err: any) {
+        console.error("Error fetching products for admin dashboard:", err);
+        setErrorProducts(`Failed to load products: ${err.message}`);
+    } finally {
+        setIsLoadingProducts(false);
     }
+    };
 
-    if (authContext.loading || (authContext.user && authContext.user.email === ADMIN_EMAIL)) {
-        const fetchAdminProducts = async () => {
-        setIsLoadingProducts(true);
-        setErrorProducts(null);
-        try {
-            const result = await getProducts({});
-            if (result.error) {
-            throw new Error(result.error);
-            }
-            setProducts(result.products);
-            setSummaryData(prev => ({
+    const fetchEcommOrders = async () => {
+    setIsLoadingOrders(true);
+    setErrorOrders(null);
+    try {
+        const result = await getEcommOrdersFromMongoDB();
+        if (result.error) {
+        throw new Error(result.error);
+        }
+        setEcommOrders(result.orders);
+        const totalSales = result.orders.reduce((sum, order) => sum + order.totalAmount, 0);
+        const uniqueUserIds = new Set(result.orders.map(order => order.userId).filter(Boolean));
+        setSummaryData(prev => ({
             ...prev,
-            totalActiveProducts: result.products.filter(p => p.status === 'active').length
-            }));
-        } catch (err: any) {
-            console.error("Error fetching products for admin dashboard:", err);
-            setErrorProducts(`Failed to load products: ${err.message}`);
-        } finally {
-            setIsLoadingProducts(false);
-        }
-        };
-
-        const fetchEcommOrders = async () => {
-        setIsLoadingOrders(true);
-        setErrorOrders(null);
-        try {
-            const result = await getEcommOrdersFromMongoDB();
-            if (result.error) {
-            throw new Error(result.error);
-            }
-            setEcommOrders(result.orders);
-            const totalSales = result.orders.reduce((sum, order) => sum + order.totalAmount, 0);
-            const uniqueUserIds = new Set(result.orders.map(order => order.userId).filter(Boolean));
-            setSummaryData(prev => ({
-                ...prev,
-                totalSalesMonth: totalSales,
-                newCustomersMonth: uniqueUserIds.size 
-            }));
-        } catch (err: any) {
-            console.error("Error fetching e-commerce orders:", err);
-            setErrorOrders(`Failed to load e-commerce orders: ${err.message}`);
-        } finally {
-            setIsLoadingOrders(false);
-        }
-        };
-
-        fetchAdminProducts();
-        fetchEcommOrders();
+            totalSalesMonth: totalSales,
+            newCustomersMonth: uniqueUserIds.size 
+        }));
+    } catch (err: any) {
+        console.error("Error fetching e-commerce orders:", err);
+        setErrorOrders(`Failed to load e-commerce orders: ${err.message}`);
+    } finally {
+        setIsLoadingOrders(false);
     }
-  }, [authContext.loading, authContext.user, router, toast]);
+    };
+
+    fetchAdminProducts();
+    fetchEcommOrders();
+  }, []);
 
   const handleEditProduct = (productId: string) => {
     router.push(`/admin/ecommerce-dashboard/edit-product/${productId}`);
@@ -196,24 +180,20 @@ export default function EcommerceDashboardPage() {
     }
   };
 
-  if (authContext.loading || (isLoadingProducts || isLoadingOrders) && authContext.user?.email === ADMIN_EMAIL) {
+  if (isLoadingProducts || isLoadingOrders) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-secondary/50">
-        <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
-        <p className="text-xl text-muted-foreground">Loading E-commerce Dashboard Data...</p>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-6 bg-secondary/50">
+        <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+        <p className="text-lg text-muted-foreground">Loading E-commerce Data...</p>
       </div>
     );
   }
   
-  if (!authContext.user || authContext.user.email !== ADMIN_EMAIL) {
-      return null; 
-  }
-
   if (errorProducts || errorOrders) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-destructive/10">
-        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
-        <p className="text-xl text-destructive font-semibold">Error Loading Dashboard Data</p>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-6 bg-destructive/10">
+        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+        <p className="text-lg text-destructive font-semibold">Error Loading Data</p>
         {errorProducts && <p className="text-muted-foreground text-center max-w-md mt-2">Product Error: {errorProducts}</p>}
         {errorOrders && <p className="text-muted-foreground text-center max-w-md mt-2">Order Error: {errorOrders}</p>}
       </div>
@@ -222,22 +202,16 @@ export default function EcommerceDashboardPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-background text-foreground p-4 md:p-8 space-y-8">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-          <div>
-            <h1 className="font-headline text-4xl font-bold text-primary flex items-center">
-              <ShoppingCart className="mr-3 h-10 w-10" />
-              E-commerce Dashboard
-            </h1>
+      <div className="space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <p className="text-muted-foreground mt-1">Manage your online store products, orders, and settings.</p>
-          </div>
           <Button asChild className="mt-4 sm:mt-0 bg-accent hover:bg-accent/90 text-accent-foreground">
             <Link href="/admin/ecommerce-dashboard/add-product">
               <PlusCircle className="mr-2 h-5 w-5" />
               Add New Product
             </Link>
           </Button>
-        </header>
+        </div>
 
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="shadow-lg rounded-xl">

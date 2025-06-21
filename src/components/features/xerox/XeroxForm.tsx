@@ -17,12 +17,13 @@ import { useAuth } from "@/context/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CreditCard, ArrowRight, ArrowLeft, UserCheck, FileText, Camera, Info } from "lucide-react";
+import { Loader2, CreditCard, ArrowRight, ArrowLeft, UserCheck, FileText, Camera, Info, Box } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
 export type SubmissionStatus = 'idle' | 'preparing' | 'navigating' | 'success' | 'error';
 type DeliveryMethod = 'pickup' | 'home_delivery';
-export type ServiceType = 'document' | 'photo';
+export type ServiceType = 'document' | 'photo' | '3d_printing';
 export type PhotoType = 'passport' | '4x6_inch';
 type XeroxFormStep = 'service_type' | 'upload_settings' | 'delivery_method' | 'delivery_details' | 'summary_payment';
 
@@ -388,18 +389,25 @@ export default function XeroxForm() {
           {currentStep === 'service_type' && (
             <div className="space-y-4">
               <Label className="text-lg font-medium">What would you like to print?</Label>
-              <RadioGroup value={serviceType} onValueChange={(val) => setServiceType(val as ServiceType)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Label htmlFor="document_service" className="flex flex-col items-center justify-center text-center p-6 border rounded-lg hover:bg-secondary/50 cursor-pointer has-[:checked]:bg-primary/10 has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary">
+              <RadioGroup value={serviceType} onValueChange={(val) => setServiceType(val as ServiceType)} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Label htmlFor="document_service" className="flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-pointer bg-card shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 has-[:checked]:scale-105 has-[:checked]:bg-primary/5 has-[:checked]:border-primary has-[:checked]:shadow-lg has-[:checked]:shadow-primary/20">
                   <RadioGroupItem value="document" id="document_service" className="sr-only" />
                   <FileText size={48} className="mb-3 text-primary" />
                   <span className="text-xl font-semibold">Documents</span>
                   <span className="text-sm text-muted-foreground">PDFs, Reports, Assignments</span>
                 </Label>
-                <Label htmlFor="photo_service" className="flex flex-col items-center justify-center text-center p-6 border rounded-lg hover:bg-secondary/50 cursor-pointer has-[:checked]:bg-primary/10 has-[:checked]:border-primary has-[:checked]:ring-2 has-[:checked]:ring-primary">
+                <Label htmlFor="photo_service" className="flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-pointer bg-card shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 has-[:checked]:scale-105 has-[:checked]:bg-primary/5 has-[:checked]:border-primary has-[:checked]:shadow-lg has-[:checked]:shadow-primary/20">
                   <RadioGroupItem value="photo" id="photo_service" className="sr-only" />
                   <Camera size={48} className="mb-3 text-primary" />
                   <span className="text-xl font-semibold">Photos</span>
                   <span className="text-sm text-muted-foreground">Passport, 4x6 Inch Prints</span>
+                </Label>
+                <Label htmlFor="3d_service" className="relative flex flex-col items-center justify-center text-center p-6 border rounded-lg cursor-not-allowed opacity-50 bg-secondary/50">
+                    <RadioGroupItem value="3d_printing" id="3d_service" className="sr-only" disabled />
+                    <Box size={48} className="mb-3 text-muted-foreground" />
+                    <span className="text-xl font-semibold text-muted-foreground">3D Printing</span>
+                    <span className="text-sm text-muted-foreground">Models, Prototypes, Art</span>
+                    <Badge variant="secondary" className="absolute top-2 right-2">Coming Soon</Badge>
                 </Label>
               </RadioGroup>
             </div>

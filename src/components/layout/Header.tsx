@@ -93,19 +93,10 @@ export function Header() {
                       <ListOrdered className="mr-2 h-4 w-4" /> My Orders
                     </Link>
                   </DropdownMenuItem>
-                  {/* <DropdownMenuItem asChild><Link href="/profile" className="cursor-pointer w-full"><UserCircle className="mr-2 h-4 w-4" /> Profile</Link></DropdownMenuItem> */}
-                  {/* <DropdownMenuItem asChild><Link href="/settings" className="cursor-pointer w-full"><Settings className="mr-2 h-4 w-4" /> Settings</Link></DropdownMenuItem> */}
-                   {isAdminUser && (
+                  {isAdminUser && (
                     <DropdownMenuItem asChild>
                         <Link href="/admin/dashboard" className="cursor-pointer w-full">
-                            <ShieldCheck className="mr-2 h-4 w-4 text-blue-500" /> Print Admin
-                        </Link>
-                    </DropdownMenuItem>
-                  )}
-                   {isAdminUser && (
-                    <DropdownMenuItem asChild>
-                        <Link href="/admin/ecommerce-dashboard" className="cursor-pointer w-full">
-                            <ShoppingCartIcon className="mr-2 h-4 w-4 text-green-500" /> E-comm Admin
+                            <Settings className="mr-2 h-4 w-4" /> Admin Dashboard
                         </Link>
                     </DropdownMenuItem>
                   )}
@@ -128,5 +119,3 @@ export function Header() {
     </header>
   );
 }
-
-    
