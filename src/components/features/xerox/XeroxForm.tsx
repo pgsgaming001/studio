@@ -17,7 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CreditCard, ArrowRight, ArrowLeft, UserCheck, FileText, Camera, Info, Box } from "lucide-react";
+import { Loader2, CreditCard, ArrowRight, ArrowLeft, UserCheck, FileText, Camera, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export type PageCountStatus = 'idle' | 'processing' | 'detected' | 'error';
@@ -390,21 +390,36 @@ export default function XeroxForm() {
             <div className="space-y-4">
               <Label className="text-lg font-medium">What would you like to print?</Label>
               <RadioGroup value={serviceType} onValueChange={(val) => setServiceType(val as ServiceType)} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Label htmlFor="document_service" className="flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-pointer bg-card shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 has-[:checked]:scale-105 has-[:checked]:bg-primary/5 has-[:checked]:border-primary has-[:checked]:shadow-lg has-[:checked]:shadow-primary/20">
+                <Label htmlFor="document_service" className="relative flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-pointer bg-card shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 has-[:checked]:bg-primary/5 has-[:checked]:border-primary has-[:checked]:shadow-lg has-[:checked]:shadow-primary/20 animate-glow-border">
                   <RadioGroupItem value="document" id="document_service" className="sr-only" />
                   <FileText size={48} className="mb-3 text-primary" />
                   <span className="text-xl font-semibold">Documents</span>
                   <span className="text-sm text-muted-foreground">PDFs, Reports, Assignments</span>
                 </Label>
-                <Label htmlFor="photo_service" className="flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-pointer bg-card shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 has-[:checked]:scale-105 has-[:checked]:bg-primary/5 has-[:checked]:border-primary has-[:checked]:shadow-lg has-[:checked]:shadow-primary/20">
+                <Label htmlFor="photo_service" className="relative flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-pointer bg-card shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 has-[:checked]:bg-primary/5 has-[:checked]:border-primary has-[:checked]:shadow-lg has-[:checked]:shadow-primary/20 animate-glow-border">
                   <RadioGroupItem value="photo" id="photo_service" className="sr-only" />
                   <Camera size={48} className="mb-3 text-primary" />
                   <span className="text-xl font-semibold">Photos</span>
                   <span className="text-sm text-muted-foreground">Passport, 4x6 Inch Prints</span>
                 </Label>
-                <Label htmlFor="3d_service" className="relative flex flex-col items-center justify-center text-center p-6 border rounded-lg cursor-not-allowed opacity-50 bg-secondary/50">
+                <Label htmlFor="3d_service" className="relative flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-not-allowed bg-card shadow-md transition-all duration-300 ease-in-out opacity-50">
                     <RadioGroupItem value="3d_printing" id="3d_service" className="sr-only" disabled />
-                    <Box size={48} className="mb-3 text-muted-foreground" />
+                    <svg
+                      className="w-12 h-12 mb-3 text-muted-foreground"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M7 21h10" />
+                      <path d="M6 18H18" />
+                      <path d="M6 18V7c0-.55.45-1 1-1h10c.55 0 1 .45 1 1v11" />
+                      <path d="M12 14v-3" />
+                      <path d="M10 11h4" />
+                      <path d="m10.5 15.5 1.5-1 1.5 1-1.5 1-1.5-1Z" fill="currentColor" />
+                    </svg>
                     <span className="text-xl font-semibold text-muted-foreground">3D Printing</span>
                     <span className="text-sm text-muted-foreground">Models, Prototypes, Art</span>
                     <Badge variant="secondary" className="absolute top-2 right-2">Coming Soon</Badge>
