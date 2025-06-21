@@ -73,6 +73,16 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       keyframes: {
+        'subtle-glow': {
+          '0%, 100%': {
+            boxShadow: '0 0 10px 0px hsl(var(--primary) / 0.3)',
+            borderColor: 'hsl(var(--primary) / 0.5)',
+          },
+          '50%': {
+            boxShadow: '0 0 20px 5px hsl(var(--primary) / 0.1)',
+            borderColor: 'hsl(var(--primary) / 1)',
+          },
+        },
         'accordion-down': {
           from: {
             height: '0',
@@ -91,6 +101,7 @@ export default {
         },
       },
       animation: {
+        'subtle-glow': 'subtle-glow 2s ease-in-out infinite',
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
