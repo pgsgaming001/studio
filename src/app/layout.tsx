@@ -8,8 +8,8 @@ import { Header } from '@/components/layout/Header';
 import Script from 'next/script'; // Import Script
 
 export const metadata: Metadata = {
-  title: 'Xerox2U',
-  description: 'Upload PDF, print, deliver to your home, or shop our online store.',
+  title: 'Xerox2U | Digital Services Platform',
+  description: 'Your all-in-one platform for document printing and e-commerce. Upload, customize, and order with ease.',
 };
 
 export default function RootLayout({

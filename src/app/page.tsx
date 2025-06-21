@@ -34,12 +34,10 @@ export default function HomePage() {
     <main className="container mx-auto px-4 py-8 md:px-6 md:py-12">
       <header className="text-center mb-10 md:mb-16">
         <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl font-bold text-primary">
-          My First Project
+          Xerox2U: Your Digital Service Hub
         </h1>
         <p className="mt-3 text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
-          {activeTab === "print"
-            ? "Upload your documents, customize print settings, and get them delivered straight to your doorstep. Fast, easy, and reliable."
-            : "Discover amazing products in our online store. More items coming soon!"}
+          Your all-in-one platform for on-demand document printing and high-quality e-commerce products. Streamline your tasks with our reliable, easy-to-use services.
         </p>
       </header>
 
