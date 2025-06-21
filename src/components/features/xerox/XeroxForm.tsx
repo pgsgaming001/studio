@@ -390,13 +390,13 @@ export default function XeroxForm() {
             <div className="space-y-4">
               <Label className="text-lg font-medium">What would you like to print?</Label>
               <RadioGroup value={serviceType} onValueChange={(val) => setServiceType(val as ServiceType)} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Label htmlFor="document_service" className="flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-pointer bg-card shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 has-[:checked]:scale-105 has-[:checked]:bg-primary/5 has-[:checked]:animate-subtle-glow">
+                <Label htmlFor="document_service" className="flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-pointer bg-card shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 has-[:checked]:scale-105 has-[:checked]:bg-primary/5 has-[:checked]:border-primary has-[:checked]:shadow-lg has-[:checked]:shadow-primary/20">
                   <RadioGroupItem value="document" id="document_service" className="sr-only" />
                   <FileText size={48} className="mb-3 text-primary" />
                   <span className="text-xl font-semibold">Documents</span>
                   <span className="text-sm text-muted-foreground">PDFs, Reports, Assignments</span>
                 </Label>
-                <Label htmlFor="photo_service" className="flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-pointer bg-card shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 has-[:checked]:scale-105 has-[:checked]:bg-primary/5 has-[:checked]:animate-subtle-glow">
+                <Label htmlFor="photo_service" className="flex flex-col items-center justify-center text-center p-6 border-2 border-border rounded-lg cursor-pointer bg-card shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 has-[:checked]:scale-105 has-[:checked]:bg-primary/5 has-[:checked]:border-primary has-[:checked]:shadow-lg has-[:checked]:shadow-primary/20">
                   <RadioGroupItem value="photo" id="photo_service" className="sr-only" />
                   <Camera size={48} className="mb-3 text-primary" />
                   <span className="text-xl font-semibold">Photos</span>
