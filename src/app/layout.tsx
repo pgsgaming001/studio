@@ -5,7 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { CartProvider } from '@/context/CartContext';
 import { AuthProvider } from '@/context/AuthContext'; // Import AuthProvider
 import { Header } from '@/components/layout/Header';
-import Script from 'next/script'; // Import Script
+import { Footer } from '@/components/layout/Footer'; // Import Footer
+import Script from 'next/script'; 
 
 export const metadata: Metadata = {
   title: 'Xerox2U | Digital Services Platform',
@@ -27,13 +28,14 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased bg-background text-foreground min-h-screen flex flex-col">
-        <AuthProvider> {/* Wrap with AuthProvider */}
+        <AuthProvider>
           <CartProvider>
             <Header />
             <div className="flex-grow">
-              {children}
+              <main>{children}</main>
             </div>
             <Toaster />
+            <Footer />
           </CartProvider>
         </AuthProvider>
         <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />

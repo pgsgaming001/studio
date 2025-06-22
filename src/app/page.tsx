@@ -31,8 +31,8 @@ export default function HomePage() {
   };
 
   return (
-    <main className="container mx-auto px-4 py-8 md:px-6 md:py-12">
-      <header className="text-center mb-10 md:mb-16">
+    <div className="container mx-auto px-4 py-8 md:px-6 md:py-12">
+      <header id="home" className="text-center mb-10 md:mb-16">
         <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl font-bold text-primary">
           Xerox2U: Your Digital Service Hub
         </h1>
@@ -47,10 +47,10 @@ export default function HomePage() {
         onValueChange={handleTabChange} // Update state on tab change
       >
         <TabsList className="grid w-full grid-cols-2 md:w-1/2 lg:w-1/3 mx-auto mb-8 h-12 rounded-lg">
-          <TabsTrigger value="print" className="text-base h-full flex items-center justify-center gap-2 data-[state=active]:shadow-md">
+          <TabsTrigger value="print" id="print" className="text-base h-full flex items-center justify-center gap-2 data-[state=active]:shadow-md">
             <Printer size={20} /> Print Service
           </TabsTrigger>
-          <TabsTrigger value="ecommerce" className="text-base h-full flex items-center justify-center gap-2 data-[state=active]:shadow-md">
+          <TabsTrigger value="ecommerce" id="ecommerce" className="text-base h-full flex items-center justify-center gap-2 data-[state=active]:shadow-md">
             <ShoppingCart size={20} /> Online Store
           </TabsTrigger>
         </TabsList>
@@ -62,6 +62,6 @@ export default function HomePage() {
           <EcommercePlaceholder />
         </TabsContent>
       </Tabs>
-    </main>
+    </div>
   );
 }
