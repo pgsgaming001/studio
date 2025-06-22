@@ -31,7 +31,7 @@ export function Footer() {
               <h4 className="font-semibold text-foreground">Company</h4>
               <nav className="flex flex-col space-y-2 text-sm">
                 <Link href="/about" className="text-muted-foreground hover:text-primary">About Us</Link>
-                <Link href="/#contact" className="text-muted-foreground hover:text-primary">Contact</Link>
+                <Link href="/contact" className="text-muted-foreground hover:text-primary">Contact</Link>
               </nav>
             </div>
             <div className="space-y-3">
@@ -39,7 +39,7 @@ export function Footer() {
               <nav className="flex flex-col space-y-2 text-sm">
                 <Link href="/terms-and-conditions" className="text-muted-foreground hover:text-primary">Terms & Conditions</Link>
                 <Link href="/privacy-policy" className="text-muted-foreground hover:text-primary">Privacy Policy</Link>
-                <Link href="/#faq" className="text-muted-foreground hover:text-primary">FAQ</Link>
+                <Link href="/faq" className="text-muted-foreground hover:text-primary">FAQ</Link>
               </nav>
             </div>
           </div>
