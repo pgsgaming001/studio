@@ -39,6 +39,8 @@ export function Footer() {
               <nav className="flex flex-col space-y-2 text-sm">
                 <Link href="/terms-and-conditions" className="text-muted-foreground hover:text-primary">Terms & Conditions</Link>
                 <Link href="/privacy-policy" className="text-muted-foreground hover:text-primary">Privacy Policy</Link>
+                <Link href="/shipping-policy" className="text-muted-foreground hover:text-primary">Shipping Policy</Link>
+                <Link href="/cancellations-and-refunds" className="text-muted-foreground hover:text-primary">Cancellations & Refunds</Link>
                 <Link href="/faq" className="text-muted-foreground hover:text-primary">FAQ</Link>
               </nav>
             </div>
