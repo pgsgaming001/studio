@@ -1,4 +1,3 @@
-
 'use server';
 
 import { ObjectId } from 'mongodb';
@@ -6,9 +5,9 @@ import { connectToDatabase } from '@/lib/mongodb';
 import type { OrderDataMongo } from './submitOrder'; // Re-use the interface
 import type { OrderDisplayData } from './getOrders';   // Re-use for return type
 
-export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+export type OrderStatus = 'pending' | 'processing' | 'awaiting_pickup' | 'shipped' | 'delivered' | 'cancelled';
 
-const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled'];
 
 interface UpdateOrderStatusPayload {
   orderId: string;

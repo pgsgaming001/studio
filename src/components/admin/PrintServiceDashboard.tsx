@@ -15,7 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 
-const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled'];
+const VALID_STATUSES: OrderStatus[] = ['pending', 'processing', 'awaiting_pickup', 'shipped', 'delivered'];
 
 interface OrderDisplayDataInternal extends FetchedOrderData {} 
 
