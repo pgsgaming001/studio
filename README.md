@@ -1,7 +1,6 @@
-
 # Xerox2U: The All-in-One Digital Service Hub
 
-Hey everyone, I'm a builder passionate about creating practical, real-world applications. I'm excited to share my project for the competition: **Xerox2U**.
+Xerox2U is your all-in-one platform for essential digital services, combining on-demand printing with a full-featured e-commerce storefront. It’s designed to be a blueprint for a local business's entire digital operation, in one box.
 
 ### The Vision
 
